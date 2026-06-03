@@ -57,12 +57,18 @@ export default function Board(): JSX.Element {
   const [w2, setW2] = usePersistentNumber('layout.board.w2', 1)
   const weights = [w0, w1, w2]
   const setters = [setW0, setW1, setW2]
-  const resizeLanes = (i: number, dx: number): void => {
+  const baseW = useRef<number[]>([1, 1, 1])
+  // Resize lanes i and i+1: total delta is converted from pixels to weight
+  // units, applied to the weights captured at drag start.
+  const resizeLanes = (i: number, totalDx: number): void => {
     const cw = boardRef.current?.clientWidth ?? 1
-    const total = w0 + w1 + w2
-    const d = (dx / cw) * total
-    setters[i](clamp(weights[i] + d, total * 0.18, total * 0.7))
-    setters[i + 1](clamp(weights[i + 1] - d, total * 0.18, total * 0.7))
+    const base = baseW.current
+    const total = base[0] + base[1] + base[2]
+    const d = (totalDx / cw) * total
+    const lo = total * 0.18
+    const hi = total * 0.64
+    setters[i](clamp(base[i] + d, lo, hi))
+    setters[i + 1](clamp(base[i + 1] - d, lo, hi))
   }
 
   const byId = useMemo(() => {
@@ -205,7 +211,12 @@ export default function Board(): JSX.Element {
               <div style={{ flexGrow: weights[i], flexBasis: 0 }} className="flex min-w-0">
                 <Lane lane={lane} ids={lanes[lane.status]} byId={byId} onOpen={openDetail} onMenu={openMenu} />
               </div>
-              {i < LANES.length - 1 && <Splitter onDrag={(dx) => resizeLanes(i, dx)} />}
+              {i < LANES.length - 1 && (
+                <Splitter
+                  onStart={() => (baseW.current = [w0, w1, w2])}
+                  onResize={(dx) => resizeLanes(i, dx)}
+                />
+              )}
             </div>
           ))}
         </div>

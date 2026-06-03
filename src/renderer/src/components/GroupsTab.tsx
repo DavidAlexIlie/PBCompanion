@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -26,6 +26,7 @@ export default function GroupsTab(): JSX.Element {
   const { problems, groups, settings, refresh, openDetail } = useStore()
   const [activeId, setActiveId] = useState<number | null>(null)
   const [libW, setLibW] = usePersistentNumber('layout.groupsLib', 460)
+  const baseLib = useRef(0)
 
   // New-group form state
   const [name, setName] = useState('')
@@ -84,7 +85,10 @@ export default function GroupsTab(): JSX.Element {
             ))}
           </div>
         </div>
-        <Splitter onDrag={(dx) => setLibW(clamp(libW + dx, 300, window.innerWidth - 520))} />
+        <Splitter
+          onStart={() => (baseLib.current = libW)}
+          onResize={(dx) => setLibW(clamp(baseLib.current + dx, 300, window.innerWidth - 520))}
+        />
 
         {/* Right: group creator + groups */}
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-slate-50 p-6">

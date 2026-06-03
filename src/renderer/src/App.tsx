@@ -58,6 +58,8 @@ export default function App(): JSX.Element {
 
   const [sidebarW, setSidebarW] = usePersistentNumber('layout.sidebar', 228)
   const [webviewW, setWebviewW] = usePersistentNumber('layout.webview', 720)
+  const baseSidebar = useRef(0)
+  const baseWebview = useRef(0)
 
   const webviewSlot = useRef<HTMLDivElement>(null)
   // The embedded browser hides while a modal/detail panel is open (so the panel
@@ -103,7 +105,10 @@ export default function App(): JSX.Element {
       <div style={{ width: sidebarW }} className="shrink-0">
         <Sidebar />
       </div>
-      <Splitter onDrag={(dx) => setSidebarW(clamp(sidebarW + dx, 180, 380))} />
+      <Splitter
+        onStart={() => (baseSidebar.current = sidebarW)}
+        onResize={(dx) => setSidebarW(clamp(baseSidebar.current + dx, 180, 420))}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         {showWebview && <BrowseToolbar />}
         <div className="relative flex min-h-0 flex-1">
@@ -112,7 +117,10 @@ export default function App(): JSX.Element {
             <div className="min-w-0 flex-1 overflow-hidden">{routeView()}</div>
           )}
           {splitMode && (
-            <Splitter onDrag={(dx) => setWebviewW(clamp(webviewW - dx, 380, window.innerWidth - 520))} />
+            <Splitter
+              onStart={() => (baseWebview.current = webviewW)}
+              onResize={(dx) => setWebviewW(clamp(baseWebview.current - dx, 380, window.innerWidth - 520))}
+            />
           )}
           {/* Reserved slot for the embedded pbinfo browser. */}
           {showWebview && (
