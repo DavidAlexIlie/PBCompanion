@@ -109,13 +109,18 @@ const VERDICT_CONTAINERS = [
   '.detalii-evaluare',
   '.rezultat',
   '.scor',
+  '.punctaj',
+  '.badge',
+  '.label',
   '.alert',
+  '.text-success',
+  'td',
   'table.table',
   '.table-responsive'
 ]
 
-const SCORE_RE = /(?:scor[^0-9]{0,10})?\b(100|[1-9]?\d)\b\s*(?:de\s+)?puncte/i
-const SCORE_LABEL_RE = /scor[^0-9]{0,6}(100|[1-9]?\d)\b/i
+const SCORE_RE = /\b(100|[1-9]?\d)\b\s*(?:de\s+)?puncte/i
+const SCORE_LABEL_RE = /(?:scor|punctaj)[^0-9]{0,8}(100|[1-9]?\d)\b/i
 
 function scoreFromText(text: string): number | null {
   if (!text) return null

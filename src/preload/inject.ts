@@ -34,6 +34,7 @@ function reportProblem(): void {
     const href = location.href
     const parsed = parseProblemUrl(href)
     if (!parsed) return
+    lastProblemId = parsed.id // remember context for verdicts on other pages
     const title = cleanProblemName(extractTitle(document) ?? parsed.slug, parsed.id, parsed.slug)
     const statementHtml = extractStatementHtml(document)
     ipcRenderer.send('pbinfo:problem-detected', {
@@ -50,32 +51,31 @@ function reportProblem(): void {
 }
 
 let lastReportedScore: { problemId: number; score: number } | null = null
+let lastProblemId: number | null = null
 
 function reportVerdict(): void {
   try {
-    // A verdict only makes sense in the context of a known problem id. Use the
-    // current URL when it's a problem page; otherwise skip (we don't guess).
-    const parsed = parseProblemUrl(location.href)
-    if (!parsed) return
+    // Verdicts may appear on the problem page itself or on a separate
+    // evaluation/solution page. Use the current URL's id when available,
+    // otherwise fall back to the last problem the user was viewing.
+    const fromUrl = parseProblemUrl(location.href)?.id ?? null
+    const problemId = fromUrl ?? lastProblemId
+    if (problemId == null) return
     const score = extractScore(document)
     if (score === null) return
     // Debounce identical readings so a re-render doesn't spam attempts.
-    if (
-      lastReportedScore &&
-      lastReportedScore.problemId === parsed.id &&
-      lastReportedScore.score === score
-    ) {
+    if (lastReportedScore && lastReportedScore.problemId === problemId && lastReportedScore.score === score) {
       return
     }
-    lastReportedScore = { problemId: parsed.id, score }
+    lastReportedScore = { problemId, score }
     const sourceCode = extractSourceCode(document)
     ipcRenderer.send('pbinfo:verdict-detected', {
-      problemId: parsed.id,
+      problemId,
       score,
       sourceCode,
       timestamp: new Date().toISOString()
     })
-    log('verdict detected', parsed.id, score, sourceCode ? '(code captured)' : '(no code)')
+    log('verdict detected', problemId, score, sourceCode ? '(code captured)' : '(no code)')
   } catch (err) {
     log('reportVerdict failed (non-fatal)', err)
   }
@@ -105,7 +105,9 @@ function init(): void {
     if (timer) return
     timer = setTimeout(() => {
       timer = null
-      if (isProblemPage(location.href)) scan()
+      // Scan on problem pages and on any page where we have a problem context
+      // (e.g. an evaluation/solution page), so verdicts are caught either way.
+      if (isProblemPage(location.href) || lastProblemId != null) scan()
     }, 600)
   }
   try {
