@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Custom slim scrollbars to keep the calm, clean look. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: content-box;
+}
+
+/* Rendered pbinfo statement HTML — keep it readable. */
+.statement-html {
+  line-height: 1.65;
+}
+.statement-html h1,
+.statement-html h2,
+.statement-html h3 {
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+}
+.statement-html p {
+  margin: 0.5em 0;
+}
+.statement-html pre,
+.statement-html code {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+.statement-html pre {
+  padding: 10px 12px;
+  overflow-x: auto;
+}
+.statement-html table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.statement-html td,
+.statement-html th {
+  border: 1px solid #e2e8f0;
+  padding: 4px 10px;
+}
+.statement-html img {
+  max-width: 100%;
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.16s ease-out;
+}
