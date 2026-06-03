@@ -92,8 +92,11 @@ export default function BrowseToolbar(): JSX.Element {
         </div>
       )}
 
-      <ToolBtn onClick={() => setWebviewFull(!webviewFull)} title={webviewFull ? 'Split view' : 'Full width'}>
-        {webviewFull ? <IconCollapse className="h-4.5 w-4.5" /> : <IconExpand className="h-4.5 w-4.5" />}
+      <ToolBtn onClick={() => setWebviewFull(true)} disabled={webviewFull} title="Make window big">
+        <IconExpand className="h-4.5 w-4.5" />
+      </ToolBtn>
+      <ToolBtn onClick={() => setWebviewFull(false)} disabled={!webviewFull} title="Make window small">
+        <IconCollapse className="h-4.5 w-4.5" />
       </ToolBtn>
     </div>
   )

@@ -44,10 +44,12 @@ export const IconClose = (p: P): JSX.Element => base(<path d="M6 6l12 12M18 6 6 
 export const IconPlus = (p: P): JSX.Element => base(<path d="M12 5v14M5 12h14" />, p)
 export const IconExternal = (p: P): JSX.Element =>
   base(<><path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></>, p)
+// Expand: four corners pointing outward (make big).
 export const IconExpand = (p: P): JSX.Element =>
-  base(<><path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6" /></>, p)
+  base(<><path d="M8 3H3v5M21 8V3h-5M16 21h5v-5M3 16v5h5M3 3l6 6M21 3l-6 6M21 21l-6-6M3 21l6-6" /></>, p)
+// Shrink: two pairs of arrows pointing toward each other (make small).
 export const IconCollapse = (p: P): JSX.Element =>
-  base(<><path d="M9 4H4v5M15 20h5v-5M4 4l5 5M20 20l-5-5" /></>, p)
+  base(<><path d="M9 3v6H3M9 9 3 3M15 3v6h6M15 9l6-6M9 21v-6H3M9 15l-6 6M15 21v-6h6M15 15l6 6" /></>, p)
 
 // A small icon set users can pick for groups.
 export const GROUP_ICONS: Record<string, (p: P) => JSX.Element> = {

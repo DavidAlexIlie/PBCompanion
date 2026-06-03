@@ -1,117 +1,123 @@
+**Romana** | [English](README.en.md)
+
 # PBCompanion
 
-A Windows desktop companion for [pbinfo.ro](https://www.pbinfo.ro). It embeds
-the real pbinfo site in a browser view and adds a local organization layer on
-top: a drag-and-drop progress board, a problem library, groups, per-problem
-notes and whiteboards, and attempt history.
+Un companion desktop pentru Windows pentru [pbinfo.ro](https://www.pbinfo.ro).
+Incarca site-ul real pbinfo intr-un browser integrat si adauga deasupra un strat
+local de organizare: o tabla de progres cu drag-and-drop, o biblioteca de
+probleme, grupuri, notite si tabla de desen per problema, si istoricul
+incercarilor.
 
-pbinfo remains the single source of truth for grading. PBCompanion reads only
-your own data from the page you are viewing. It does not scrape hidden tests,
-automate submissions, or compute scores.
+pbinfo ramane singura sursa de adevar pentru notare. PBCompanion citeste doar
+datele tale, de pe pagina pe care o vizualizezi. Nu extrage teste ascunse, nu
+automatizeaza trimiteri si nu calculeaza scoruri.
 
-## Table of contents
+## Cuprins
 
-- [Overview](#overview)
-- [Browsing and registering problems](#browsing-and-registering-problems)
-- [Progress board](#progress-board)
-- [Solving and score detection](#solving-and-score-detection)
-- [Notes and whiteboard](#notes-and-whiteboard)
-- [Groups](#groups)
-- [Requirements](#requirements)
-- [Development](#development)
-- [Data and storage](#data-and-storage)
-- [Architecture](#architecture)
-- [License](#license)
+- [Prezentare generala](#prezentare-generala)
+- [Navigare si inregistrarea problemelor](#navigare-si-inregistrarea-problemelor)
+- [Tabla de progres](#tabla-de-progres)
+- [Rezolvare si detectarea scorului](#rezolvare-si-detectarea-scorului)
+- [Notite si tabla de desen](#notite-si-tabla-de-desen)
+- [Grupuri](#grupuri)
+- [Cerinte](#cerinte)
+- [Dezvoltare](#dezvoltare)
+- [Date si stocare](#date-si-stocare)
+- [Arhitectura](#arhitectura)
+- [Licenta](#licenta)
 
-## Overview
+## Prezentare generala
 
-Everything lives locally: SQLite for metadata plus real folders on disk for
-groups. The pbinfo site is loaded live in an embedded browser, so you log in
-once and solve problems exactly as you would in a normal browser, while
-PBCompanion organizes the results around it.
+Totul este stocat local: SQLite pentru metadate plus foldere reale pe disc
+pentru grupuri. Site-ul pbinfo este incarcat live intr-un browser integrat,
+asa ca te autentifici o singura data si rezolvi problemele exact ca intr-un
+browser obisnuit, in timp ce PBCompanion organizeaza rezultatele in jur.
 
-## Browsing and registering problems
+## Navigare si inregistrarea problemelor
 
-Browse pbinfo inside the app. When you open a problem the app has not seen yet,
-a NEW action appears; clicking it registers the problem and drops a token on the
-progress board.
+Navighezi pe pbinfo in interiorul aplicatiei. Cand deschizi o problema pe care
+aplicatia nu a vazut-o inca, apare actiunea NEW; un click o inregistreaza si
+aseaza un token pe tabla de progres.
 
-![Progress board and registering a new problem](docs/ProgressBoard%2BPbinfoNewProblem.gif)
+![Tabla de progres si inregistrarea unei probleme noi](docs/ProgressBoard%2BPbinfoNewProblem.gif)
 
-## Progress board
+## Tabla de progres
 
-Three lanes: In Progress, Completed, and DNF. Drag tokens between and within
-lanes; manual placement always wins over auto-detection. Lanes are resizable,
-and right-clicking a token lets you mark it (yellow outline) or delete it.
+Trei coloane: In Progress, Completed si DNF. Trage tokenii intre si in interiorul
+coloanelor; plasarea manuala are mereu prioritate fata de detectarea automata.
+Coloanele sunt redimensionabile, iar click-dreapta pe un token iti permite sa-l
+marchezi (contur galben) sau sa-l stergi.
 
-## Solving and score detection
+## Rezolvare si detectarea scorului
 
-Submit on pbinfo as usual. The content script reads the verdict and records the
-score, timestamp, and source code when available. A full score moves the problem
-to Completed automatically, unless you have already placed it yourself.
+Trimiti solutia pe pbinfo ca de obicei. Scriptul integrat citeste verdictul si
+inregistreaza scorul, momentul si codul sursa cand este disponibil. Un scor
+maxim muta automat problema in Completed, daca nu ai plasat-o deja tu.
 
-![Solving a problem and reaching 100 points](docs/SolveProblem100.gif)
+![Rezolvarea unei probleme si atingerea a 100 de puncte](docs/SolveProblem100.gif)
 
-## Notes and whiteboard
+## Notite si tabla de desen
 
-Each problem has notes and a whiteboard, opened from its detail window. They open
-as independent, frameless windows (notes on the left, whiteboard on the right)
-that can be dragged anywhere, including another monitor. The whiteboard uses a
-high-resolution canvas with smoothed, continuous strokes, an eraser, and undo
-(Ctrl+Z). Both autosave every second and close with the problem.
+Fiecare problema are notite si o tabla de desen, deschise din fereastra sa de
+detalii. Se deschid ca ferestre independente, fara chenar (notitele in stanga,
+tabla de desen in dreapta), care pot fi trase oriunde, inclusiv pe alt monitor.
+Tabla de desen foloseste un canvas de rezolutie inalta cu trasaturi netede si
+continue, o radiera si undo (Ctrl+Z). Ambele se salveaza automat in fiecare
+secunda si se inchid odata cu problema.
 
-![Notes and whiteboard windows](docs/Notes%26Whiteboard.gif)
+![Ferestrele de notite si tabla de desen](docs/Notes%26Whiteboard.gif)
 
-## Groups
+## Grupuri
 
-Organize problems into groups, each with a color and icon and mirrored as a real
-folder on disk. Drag problems from the library into a group; right-click a group
-to edit it.
+Organizezi problemele in grupuri, fiecare cu o culoare si o pictograma, oglindite
+ca foldere reale pe disc. Trage problemele din biblioteca intr-un grup;
+click-dreapta pe un grup pentru a-l edita.
 
-![Creating and editing groups](docs/Groups.gif)
+![Crearea si editarea grupurilor](docs/Groups.gif)
 
-## Requirements
+## Cerinte
 
-- Windows 10 or 11 (WebView2 is included).
-- Node.js 18+ and, for the native SQLite module, Python and the Visual Studio
+- Windows 10 sau 11 (WebView2 este inclus).
+- Node.js 18+ si, pentru modulul nativ SQLite, Python si Visual Studio
   C++ Build Tools.
 
-## Development
+## Dezvoltare
 
 ```
-npm install      # installs deps and rebuilds better-sqlite3 for Electron
-npm run dev       # run with hot reload
-npm run build     # bundle main, preload, and renderer into out/
-npm start         # run the bundled build
-npm run dist      # build a Windows installer into release/
+npm install      # instaleaza dependintele si recompileaza better-sqlite3 pentru Electron
+npm run dev       # ruleaza cu hot reload
+npm run build     # impacheteaza main, preload si renderer in out/
+npm start         # ruleaza build-ul impachetat
+npm run dist      # creeaza un installer Windows in release/
 ```
 
-## Data and storage
+## Date si stocare
 
-- Database: `<dataDir>/pbinfo-organizer.db`
-- Group folders: `<dataDir>/groups/<name>/`
-- Session backup: `<dataDir>/pbinfo-session.bin` (encrypted)
-- Default `dataDir`: `%APPDATA%/pbcompanion/pbinfo-data` (changeable in Settings)
+- Baza de date: `<dataDir>/pbinfo-organizer.db`
+- Foldere grupuri: `<dataDir>/groups/<nume>/`
+- Backup sesiune: `<dataDir>/pbinfo-session.bin` (criptat)
+- `dataDir` implicit: `%APPDATA%/pbcompanion/pbinfo-data` (se poate schimba in Setari)
 
-Deleting attempts, problems, or groups affects local records only and never
-touches pbinfo.
+Stergerea incercarilor, problemelor sau grupurilor afecteaza doar inregistrarile
+locale si nu atinge niciodata pbinfo.
 
-## Architecture
+## Arhitectura
 
-Three processes communicate over Electron IPC:
+Trei procese comunica prin IPC Electron:
 
-- Main (`src/main`): window and `WebContentsView` management, SQLite, settings,
-  session persistence, ad blocking, pop-out panels, and all IPC handlers.
-- Preload (`src/preload`): `index.ts` exposes a typed `window.api` to the
-  renderer; `inject.ts` is the content script running inside pbinfo; all pbinfo
-  DOM selectors live in `pbinfoSelectors.ts`.
+- Main (`src/main`): gestionarea ferestrei si a `WebContentsView`, SQLite, setari,
+  persistenta sesiunii, blocarea reclamelor, ferestrele pop-out si toate
+  handler-ele IPC.
+- Preload (`src/preload`): `index.ts` expune un `window.api` tipizat catre
+  renderer; `inject.ts` este scriptul integrat care ruleaza in pbinfo; toti
+  selectorii DOM pentru pbinfo se afla in `pbinfoSelectors.ts`.
 - Renderer (`src/renderer`): React, TypeScript, Tailwind CSS, dnd-kit, Zustand.
 
-pbinfo markup is treated as unstable. Every selector has fallbacks and every
-extraction degrades gracefully instead of crashing. When pbinfo changes its
-HTML, `src/preload/pbinfoSelectors.ts` is the only file that should need
-updating.
+Marcajul pbinfo este tratat ca instabil. Fiecare selector are variante de
+rezerva si fiecare extragere esueaza elegant in loc sa crape aplicatia. Cand
+pbinfo isi schimba HTML-ul, `src/preload/pbinfoSelectors.ts` este singurul
+fisier care ar trebui modificat.
 
-## License
+## Licenta
 
 MIT
