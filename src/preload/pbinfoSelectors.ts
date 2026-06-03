@@ -122,32 +122,41 @@ const VERDICT_CONTAINERS = [
 const SCORE_RE = /\b(100|[1-9]?\d)\b\s*(?:de\s+)?puncte/i
 const SCORE_LABEL_RE = /(?:scor|punctaj)[^0-9]{0,8}(100|[1-9]?\d)\b/i
 
-function scoreFromText(text: string): number | null {
+const SCORE_RE_G = /\b(100|[1-9]?\d)\s*(?:de\s+)?puncte/gi
+const SCORE_LABEL_RE_G = /(?:scor|punctaj)[^0-9]{0,8}(100|[1-9]?\d)\b/gi
+
+/** Highest score-like value in the text. pbinfo lists per-test points (e.g.
+ *  "10 puncte" per test), so we take the MAXIMUM, which is the total. */
+function maxScoreInText(text: string): number | null {
   if (!text) return null
-  const m = text.match(SCORE_RE) || text.match(SCORE_LABEL_RE)
-  if (!m) return null
-  const n = Number(m[1])
-  if (!Number.isFinite(n) || n < 0 || n > 100) return null
-  return n
+  let best: number | null = null
+  for (const re of [SCORE_RE_G, SCORE_LABEL_RE_G]) {
+    re.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      const n = Number(m[1])
+      if (Number.isFinite(n) && n >= 0 && n <= 100 && (best === null || n > best)) best = n
+    }
+  }
+  return best
 }
 
 export function extractScore(doc: Document): number | null {
+  let best: number | null = null
   for (const sel of VERDICT_CONTAINERS) {
     try {
-      const nodes = doc.querySelectorAll(sel)
-      for (const node of Array.from(nodes)) {
-        const s = scoreFromText(node.textContent || '')
-        if (s !== null) return s
+      for (const node of Array.from(doc.querySelectorAll(sel))) {
+        const s = maxScoreInText(node.textContent || '')
+        if (s !== null && (best === null || s > best)) best = s
       }
     } catch {
       /* ignore */
     }
   }
+  if (best !== null) return best
   // Whole-body fallback, but only if the page even mentions evaluation.
   const body = doc.body?.textContent || ''
-  if (/evaluare|verdict|puncte|scor/i.test(body)) {
-    return scoreFromText(body)
-  }
+  if (/evaluare|verdict|puncte|scor/i.test(body)) return maxScoreInText(body)
   return null
 }
 
