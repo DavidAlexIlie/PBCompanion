@@ -3,7 +3,7 @@ import { join } from 'path'
 import * as db from './db'
 import * as settings from './settings'
 import * as pb from './pbinfoView'
-import { attachSessionPersistence } from './sessionPersist'
+import { attachSessionPersistence, flushSession } from './sessionPersist'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
 import type { ViewBounds, UserStatus, DetectedProblem, DetectedVerdict } from '../shared/types'
 
@@ -197,6 +197,15 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+// Best-effort flush of the login backup before quitting.
+app.on('before-quit', (e) => {
+  e.preventDefault()
+  flushSession().finally(() => {
+    app.removeAllListeners('before-quit')
+    app.quit()
   })
 })
 

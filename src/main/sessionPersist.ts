@@ -37,16 +37,29 @@ function cookieUrl(c: Electron.Cookie): string {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let activeSes: Electron.Session | null = null
+let activeDir = ''
 
 /** Restore cookies from disk into the partition, then keep the file in sync. */
 export async function attachSessionPersistence(partition: string, dataDir: string): Promise<void> {
   const ses = session.fromPartition(partition)
+  activeSes = ses
+  activeDir = dataDir
   await restore(ses, dataDir)
 
+  // Save shortly after any cookie change...
   ses.cookies.on('changed', () => {
     if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(() => void save(ses, dataDir), 1500)
+    saveTimer = setTimeout(() => void save(ses, dataDir), 1000)
   })
+  // ...and on a steady cadence, so a fresh login is backed up within ~15s even
+  // if the app is closed abruptly.
+  setInterval(() => void save(ses, dataDir), 15000)
+}
+
+/** Force an immediate save (call on app quit). */
+export async function flushSession(): Promise<void> {
+  if (activeSes) await save(activeSes, activeDir)
 }
 
 async function save(ses: Electron.Session, dataDir: string): Promise<void> {
