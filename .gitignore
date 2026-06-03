@@ -11,3 +11,4 @@ dist/
 *.apk
 github-sync.json
 pbcompanion-sync.json
+.claude/
