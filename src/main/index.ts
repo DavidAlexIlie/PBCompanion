@@ -3,7 +3,7 @@ import { join } from 'path'
 import * as db from './db'
 import * as settings from './settings'
 import * as pb from './pbinfoView'
-import { attachSessionPersistence, flushSession } from './sessionPersist'
+import { attachSessionPersistence, flushSession, onPbinfoCookieChanged } from './sessionPersist'
 import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
 import type { ViewBounds, UserStatus, DetectedProblem, DetectedVerdict } from '../shared/types'
@@ -50,11 +50,11 @@ function createWindow(): void {
       if (v.score !== null) {
         const s = settings.getSettings()
         db.addAttempt(v.problemId, v.sourceCode, v.score, v.timestamp)
-        db.applyDetectedScore(v.problemId, v.score, {
+        if (s.keepOnlyBest) db.keepOnlyBestAttempts()
+        db.applyDetectedScore(v.problemId, {
           autoMove: s.autoMoveOnHundred,
           completedThreshold: s.bandCompleted
         })
-        if (s.keepOnlyBest) db.keepOnlyBestAttempts()
         notifyDataChanged()
       }
     }
@@ -117,9 +117,29 @@ function registerIpc(): void {
   // ---- attempts ----
   ipcMain.handle('attempts:list', (_e, problemId: number) => db.listAttempts(problemId))
   ipcMain.handle('attempts:delete', (_e, attemptId: number) => {
-    db.deleteAttempt(attemptId)
+    const problemId = db.deleteAttempt(attemptId)
+    // The problem's score is derived from its attempts — recompute so deleting
+    // attempts lowers (or clears) the score instead of leaving it stale.
+    if (problemId !== null) db.recomputeDetectedScore(problemId)
     notifyDataChanged()
   })
+  ipcMain.handle(
+    'attempts:addManual',
+    (
+      _e,
+      { problemId, score, sourceCode }: { problemId: number; score: number; sourceCode: string | null }
+    ) => {
+      // A user-entered score/code is recorded as a normal attempt, so the
+      // derived score and the attempts list both reflect it.
+      db.addAttempt(problemId, sourceCode, score, new Date().toISOString())
+      const s = settings.getSettings()
+      db.applyDetectedScore(problemId, {
+        autoMove: s.autoMoveOnHundred,
+        completedThreshold: s.bandCompleted
+      })
+      notifyDataChanged()
+    }
+  )
 
   // ---- groups ----
   ipcMain.handle('groups:list', () => db.listGroups())
@@ -207,6 +227,7 @@ app.whenReady().then(async () => {
   db.initDb(boot.dataDir)
   // Restore a durable login (cookies mirrored to the data folder) before the
   // webview loads, so the user stays signed in across reinstalls.
+  onPbinfoCookieChanged(pb.handleCookieChanged)
   await attachSessionPersistence(pb.PARTITION, boot.dataDir)
   registerIpc()
   createWindow()

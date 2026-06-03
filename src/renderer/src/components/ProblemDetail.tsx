@@ -3,7 +3,8 @@ import DOMPurify from 'dompurify'
 import { useStore } from '../store'
 import { scoreBand, bandTag } from '../lib/score'
 import { cleanProblemName } from '../../../shared/text'
-import { IconClose, IconTrash, IconExternal, IconNote, IconBoard } from './icons'
+import { cleanSourceCode } from '../../../shared/sourceCode'
+import { IconClose, IconTrash, IconExternal, IconNote, IconBoard, IconCopy, IconCheckMark } from './icons'
 import type { Attempt } from '../../../shared/types'
 
 export default function ProblemDetail({ problemId }: { problemId: number }): JSX.Element {
@@ -142,9 +143,7 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
                         </button>
                       </div>
                       {a.source_code ? (
-                        <pre className="max-h-64 overflow-auto rounded-b-xl bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">
-                          <code>{a.source_code}</code>
-                        </pre>
+                        <CodeBlock source={a.source_code} />
                       ) : (
                         <div className="px-4 py-2 text-xs italic text-slate-400">
                           Source code not captured for this attempt.
@@ -159,5 +158,53 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
         </div>
       </div>
     </div>
+  )
+}
+
+/** Visual line numbers are separate DOM nodes; source and clipboard stay clean. */
+function CodeBlock({ source }: { source: string }): JSX.Element {
+  const code = cleanSourceCode(source)
+  const lines = code.split('\n')
+  return (
+    <div className="group relative max-h-64 overflow-auto rounded-b-xl bg-slate-900 py-3 text-xs leading-relaxed">
+      <CopyButton code={code} />
+      <div className="min-w-max font-mono">
+        {lines.map((line, index) => (
+          <div key={index} className="flex">
+            <span
+              aria-hidden="true"
+              className="w-12 shrink-0 select-none border-r border-slate-700/70 pr-3 text-right text-slate-500"
+            >
+              {index + 1}
+            </span>
+            <code className="whitespace-pre px-3 text-slate-100">{line || ' '}</code>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Copy-to-clipboard button overlaid on a captured-code block. */
+function CopyButton({ code }: { code: string }): JSX.Element {
+  const [copied, setCopied] = useState(false)
+  const copy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* clipboard unavailable — ignore */
+    }
+  }
+  return (
+    <button
+      onClick={copy}
+      title={copied ? 'Copied!' : 'Copy code'}
+      className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-slate-700/80 px-2 py-1 text-xs font-medium text-slate-100 opacity-0 transition hover:bg-slate-600 group-hover:opacity-100"
+    >
+      {copied ? <IconCheckMark className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
+      {copied ? 'Copied' : 'Copy'}
+    </button>
   )
 }

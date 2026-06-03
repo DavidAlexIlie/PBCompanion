@@ -20,6 +20,8 @@ export const PARTITION = 'persist:pbinfo' // persisted to disk under userData ->
 let view: WebContentsView | null = null
 let win: BrowserWindow | null = null
 let currentBounds: ViewBounds = { x: 0, y: 0, width: 0, height: 0, visible: false }
+let authReloadTimer: ReturnType<typeof setTimeout> | null = null
+let lastAuthReloadAt = 0
 
 export function getNavState(): PbinfoNavState {
   if (!view) return { url: '', canGoBack: false, canGoForward: false, loading: false }
@@ -109,6 +111,34 @@ export function goForward(): void {
 
 export function reload(): void {
   view?.webContents.reload()
+}
+
+/**
+ * pbinfo's login dialog confirms success after setting its session cookie, but
+ * the surrounding page can keep rendering the old logged-out navigation until
+ * the next app launch. Reload once after a likely authentication-cookie update
+ * so the current view immediately consumes the new session.
+ */
+export function handleCookieChanged(
+  cookie: Electron.Cookie,
+  cause: string,
+  removed: boolean
+): void {
+  const domain = (cookie.domain ?? '').replace(/^\./, '').toLowerCase()
+  if (removed || !domain.endsWith('pbinfo.ro')) return
+  const likelyAuthCookie =
+    cookie.httpOnly || /(?:session|sess|auth|login|user|token|php)/i.test(cookie.name)
+  if (!likelyAuthCookie || !['explicit', 'overwrite'].includes(cause)) return
+  if (!view || view.webContents.isDestroyed()) return
+  if (Date.now() - lastAuthReloadAt < 5000) return
+  if (authReloadTimer) clearTimeout(authReloadTimer)
+  authReloadTimer = setTimeout(() => {
+    authReloadTimer = null
+    const wc = view?.webContents
+    if (!wc || wc.isDestroyed()) return
+    lastAuthReloadAt = Date.now()
+    wc.reload()
+  }, 700)
 }
 
 export async function clearPbinfoSession(): Promise<void> {

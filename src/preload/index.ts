@@ -35,6 +35,8 @@ const api = {
     ipcRenderer.invoke('attempts:list', problemId),
   deleteAttempt: (attemptId: number): Promise<void> =>
     ipcRenderer.invoke('attempts:delete', attemptId),
+  addManualAttempt: (problemId: number, score: number, sourceCode: string | null): Promise<void> =>
+    ipcRenderer.invoke('attempts:addManual', { problemId, score, sourceCode }),
 
   // ---- groups ----
   listGroups: (): Promise<GroupWithMembers[]> => ipcRenderer.invoke('groups:list'),

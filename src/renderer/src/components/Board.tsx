@@ -23,6 +23,7 @@ import Token from './Token'
 import Splitter, { usePersistentNumber, clamp } from './Splitter'
 import ContextMenu, { type MenuItem } from './ContextMenu'
 import ConfirmDialog from './ConfirmDialog'
+import EditScoreModal from './EditScoreModal'
 import { cleanProblemName } from '../../../shared/text'
 import { IconProgress, IconCheck, IconDnf } from './icons'
 import type { Problem, UserStatus } from '../../../shared/types'
@@ -49,6 +50,7 @@ export default function Board(): JSX.Element {
   const [fromLane, setFromLane] = useState<UserStatus | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; problem: Problem } | null>(null)
   const [confirmDel, setConfirmDel] = useState<Problem | null>(null)
+  const [editScore, setEditScore] = useState<Problem | null>(null)
 
   // Resizable lane widths.
   const boardRef = useRef<HTMLDivElement>(null)
@@ -181,6 +183,10 @@ export default function Board(): JSX.Element {
       }
     },
     {
+      label: 'Edit score',
+      onClick: () => setEditScore(p)
+    },
+    {
       label: 'Delete problem',
       danger: true,
       onClick: () => setConfirmDel(p)
@@ -242,6 +248,16 @@ export default function Board(): JSX.Element {
             await refresh()
           }}
           onCancel={() => setConfirmDel(null)}
+        />
+      )}
+      {editScore && (
+        <EditScoreModal
+          problem={editScore}
+          onClose={() => setEditScore(null)}
+          onSaved={async () => {
+            setEditScore(null)
+            await refresh()
+          }}
         />
       )}
     </div>

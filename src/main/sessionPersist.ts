@@ -39,6 +39,15 @@ function cookieUrl(c: Electron.Cookie): string {
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let activeSes: Electron.Session | null = null
 let activeDir = ''
+let cookieChangedHandler: ((cookie: Electron.Cookie, cause: string, removed: boolean) => void) | null =
+  null
+
+/** Let the pbinfo view react immediately when authentication cookies change. */
+export function onPbinfoCookieChanged(
+  handler: (cookie: Electron.Cookie, cause: string, removed: boolean) => void
+): void {
+  cookieChangedHandler = handler
+}
 
 /** Restore cookies from disk into the partition, then keep the file in sync. */
 export async function attachSessionPersistence(partition: string, dataDir: string): Promise<void> {
@@ -48,9 +57,10 @@ export async function attachSessionPersistence(partition: string, dataDir: strin
   await restore(ses, dataDir)
 
   // Save shortly after any cookie change...
-  ses.cookies.on('changed', () => {
+  ses.cookies.on('changed', (_event, cookie, cause, removed) => {
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => void save(ses, dataDir), 1000)
+    cookieChangedHandler?.(cookie, cause, removed)
   })
   // ...and on a steady cadence, so a fresh login is backed up within ~15s even
   // if the app is closed abruptly.
@@ -80,6 +90,9 @@ async function save(ses: Electron.Session, dataDir: string): Promise<void> {
     const blob = safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(json.toString('utf-8')) : json
     mkdirSync(dataDir, { recursive: true })
     writeFileSync(fileFor(dataDir), blob)
+    // Ask Chromium to flush its persistent partition too. The encrypted mirror
+    // remains the reinstall-safe backup; this keeps normal restarts reliable.
+    ses.flushStorageData()
   } catch {
     /* non-fatal: login will simply rely on the partition cache */
   }

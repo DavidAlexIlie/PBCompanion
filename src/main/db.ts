@@ -14,6 +14,7 @@ import type {
   UserStatus,
   DetectedProblem
 } from '../shared/types'
+import { cleanSourceCode } from '../shared/sourceCode'
 
 let db: Database.Database
 
@@ -202,20 +203,34 @@ export function saveProblemWhiteboard(id: number, whiteboard: string): void {
   upsertDoc(id, 'whiteboard', whiteboard)
 }
 
-/** Apply a detected score; auto-move to Completed on >=threshold only when the
- *  user has NOT manually placed the problem (manual placement always wins). */
+/**
+ * detected_score is DERIVED, not a high-water mark: it is the best score among
+ * the problem's recorded attempts (NULL when there are none). Recompute it
+ * whenever attempts change so the score always reflects the attempt history —
+ * delete every attempt and the score drops back to "no score". Returns the
+ * recomputed value.
+ */
+export function recomputeDetectedScore(problemId: number): number | null {
+  const row = getDb()
+    .prepare('SELECT MAX(score) AS m FROM attempts WHERE problem_id=?')
+    .get(problemId) as { m: number | null }
+  const best = row?.m ?? null
+  getDb()
+    .prepare('UPDATE problems SET detected_score=?, updated_at=? WHERE id=?')
+    .run(best, now(), problemId)
+  return best
+}
+
+/** Recompute the derived score and auto-move to Completed on >=threshold, but
+ *  only when the user has NOT manually placed the problem (manual wins). */
 export function applyDetectedScore(
   problemId: number,
-  score: number,
   opts: { autoMove: boolean; completedThreshold: number }
 ): void {
   const p = getProblem(problemId)
   if (!p) return
-  const best = Math.max(score, p.detected_score ?? 0)
-  getDb()
-    .prepare('UPDATE problems SET detected_score=?, updated_at=? WHERE id=?')
-    .run(best, now(), problemId)
-  if (opts.autoMove && best >= opts.completedThreshold && p.user_status === null) {
+  const best = recomputeDetectedScore(problemId)
+  if (opts.autoMove && best !== null && best >= opts.completedThreshold && p.user_status === null) {
     setProblemStatus(problemId, 'completed')
   }
 }
@@ -237,11 +252,17 @@ export function addAttempt(
     .prepare(
       'INSERT INTO attempts (problem_id, source_code, score, submitted_at) VALUES (?,?,?,?)'
     )
-    .run(problemId, sourceCode, score, submittedAt)
+    .run(problemId, sourceCode ? cleanSourceCode(sourceCode) : null, score, submittedAt)
 }
 
-export function deleteAttempt(attemptId: number): void {
+/** Delete an attempt; returns the problem it belonged to so the caller can
+ *  recompute that problem's derived score. */
+export function deleteAttempt(attemptId: number): number | null {
+  const row = getDb()
+    .prepare('SELECT problem_id FROM attempts WHERE id=?')
+    .get(attemptId) as { problem_id: number } | undefined
   getDb().prepare('DELETE FROM attempts WHERE id=?').run(attemptId)
+  return row?.problem_id ?? null
 }
 
 /** Keep only the single highest-scoring attempt per problem (destructive). */
