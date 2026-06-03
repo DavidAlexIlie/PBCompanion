@@ -6,3 +6,8 @@ dist/
 .DS_Store
 
 *.tsbuildinfo
+
+# Personal Android artifacts and local GitHub sync configuration
+*.apk
+github-sync.json
+pbcompanion-sync.json

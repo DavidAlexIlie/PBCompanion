@@ -6,6 +6,7 @@ import * as pb from './pbinfoView'
 import { attachSessionPersistence, flushSession, onPbinfoCookieChanged } from './sessionPersist'
 import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
+import { startDesktopSync, stopDesktopSync } from './sync'
 import type { ViewBounds, UserStatus, DetectedProblem, DetectedVerdict } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -18,8 +19,8 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 920,
-    minWidth: 1024,
-    minHeight: 680,
+    minWidth: 1280,
+    minHeight: 760,
     backgroundColor: '#f8fafc',
     title: 'PBCompanion',
     icon: join(__dirname, '../../resources/icon.png'),
@@ -229,6 +230,7 @@ app.whenReady().then(async () => {
   // webview loads, so the user stays signed in across reinstalls.
   onPbinfoCookieChanged(pb.handleCookieChanged)
   await attachSessionPersistence(pb.PARTITION, boot.dataDir)
+  startDesktopSync(boot.dataDir)
   registerIpc()
   createWindow()
 
@@ -240,6 +242,7 @@ app.whenReady().then(async () => {
 // Best-effort flush of the login backup before quitting.
 app.on('before-quit', (e) => {
   e.preventDefault()
+  stopDesktopSync()
   flushSession().finally(() => {
     app.removeAllListeners('before-quit')
     app.quit()

@@ -363,3 +363,50 @@ export function setSetting(key: string, value: string): void {
 export function clearOrganizerData(): void {
   getDb().exec('DELETE FROM group_problems; DELETE FROM groups; DELETE FROM attempts; DELETE FROM problems;')
 }
+
+export function exportSyncSnapshot(): {
+  version: number
+  updatedAt: string
+  problems: {
+    id: number
+    slug: string | null
+    title: string | null
+    detected_score: number | null
+    user_status: UserStatus | null
+    marked: number
+    sort_index: number
+    updated_at: string
+  }[]
+  groups: GroupWithMembers[]
+  docs: { problemId: number; notes: string; whiteboard: string; updatedAt: string | null }[]
+} {
+  const docs = getDb()
+    .prepare('SELECT problem_id, notes, whiteboard, updated_at FROM problem_docs')
+    .all() as {
+    problem_id: number
+    notes: string | null
+    whiteboard: string | null
+    updated_at: string | null
+  }[]
+  return {
+    version: 1,
+    updatedAt: now(),
+    problems: listProblems().map((problem) => ({
+      id: problem.id,
+      slug: problem.slug,
+      title: problem.title,
+      detected_score: problem.detected_score,
+      user_status: problem.user_status,
+      marked: problem.marked,
+      sort_index: problem.sort_index,
+      updated_at: problem.updated_at
+    })),
+    groups: listGroups().map((group) => ({ ...group, folder_path: null })),
+    docs: docs.map((doc) => ({
+      problemId: doc.problem_id,
+      notes: doc.notes ?? '',
+      whiteboard: doc.whiteboard ?? '',
+      updatedAt: doc.updated_at
+    }))
+  }
+}

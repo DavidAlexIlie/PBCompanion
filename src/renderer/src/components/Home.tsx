@@ -20,20 +20,20 @@ export default function Home(): JSX.Element {
   }
 
   return (
-    <div className="h-full overflow-y-auto px-8 py-8">
+    <div className="h-full overflow-y-auto px-5 py-6 xl:px-8 xl:py-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
         <p className="mt-1 text-slate-500">
           Your launchpad for pbinfo. Browse the real site, register problems, and track progress.
         </p>
 
-        <div className="mt-6 grid grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
           <StatCard label="In Progress" value={counts.in_progress} Icon={IconProgress} accent="text-brand-600" onClick={() => setRoute('board')} />
           <StatCard label="Completed" value={counts.completed} Icon={IconCheck} accent="text-emerald-600" onClick={() => setRoute('board')} />
           <StatCard label="DNF" value={counts.dnf} Icon={IconDnf} accent="text-rose-500" onClick={() => setRoute('board')} />
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4">
+        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <button
             onClick={startBrowsing}
             className="group flex items-center gap-4 rounded-2xl bg-brand-600 px-6 py-5 text-left text-white shadow-soft transition hover:bg-brand-700"
@@ -117,12 +117,12 @@ function StatCard({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+      className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift xl:gap-4 xl:px-5"
     >
       <Icon className={`h-7 w-7 ${accent}`} />
-      <div>
+      <div className="min-w-0">
         <div className="text-2xl font-bold text-slate-900">{value}</div>
-        <div className="text-sm text-slate-500">{label}</div>
+        <div className="truncate text-sm text-slate-500">{label}</div>
       </div>
     </button>
   )
