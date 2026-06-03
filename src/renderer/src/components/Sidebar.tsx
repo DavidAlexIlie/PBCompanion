@@ -1,12 +1,13 @@
 import { useStore, type Route } from '../store'
 import logo from '../assets/logo.png'
-import { IconHome, IconBoard, IconGroups, IconSettings, IconBrowser } from './icons'
+import { IconHome, IconBoard, IconGroups, IconSettings, IconBrowser, IconCode } from './icons'
 
 type Item = { route: Route; label: string; Icon: (p: { className?: string }) => JSX.Element }
 
 const ITEMS: Item[] = [
   { route: 'home', label: 'Home', Icon: IconHome },
   { route: 'board', label: 'Progress Board', Icon: IconBoard },
+  { route: 'workspace', label: 'C++ Workspace', Icon: IconCode },
   { route: 'groups', label: 'Groups', Icon: IconGroups },
   { route: 'settings', label: 'Settings', Icon: IconSettings }
 ]

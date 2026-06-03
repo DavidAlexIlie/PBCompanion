@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { useStore } from '../store'
+import { IconReload } from './icons'
 import type { AppSettings } from '../../../shared/types'
 
 export default function SettingsView(): JSX.Element {
   const { settings, refreshSettings, refresh } = useStore()
+  const [syncState, setSyncState] = useState<'idle' | 'pushing' | 'success' | 'error'>('idle')
+  const [syncMessage, setSyncMessage] = useState('')
   if (!settings) return <div />
 
   const update = async (patch: Partial<AppSettings>): Promise<void> => {
@@ -55,6 +59,48 @@ export default function SettingsView(): JSX.Element {
         </Section>
 
         <Section title="Data & session">
+          <Row
+            label="Mobile sync"
+            desc={
+              syncState === 'success'
+                ? 'Snapshot pushed successfully.'
+                : syncState === 'error'
+                  ? syncMessage
+                  : 'Push the latest board, groups, notes and whiteboards now.'
+            }
+            action={
+              <button
+                disabled={syncState === 'pushing'}
+                onClick={async () => {
+                  setSyncState('pushing')
+                  const result = await window.api.pushSyncNow()
+                  if (result.ok) {
+                    setSyncMessage('')
+                    setSyncState('success')
+                  } else {
+                    setSyncMessage(
+                      result.reason === 'not_configured'
+                        ? 'Sync is not configured in the active data folder.'
+                        : result.reason === 'busy'
+                          ? 'A sync is already running. Try again in a moment.'
+                          : `Push failed${result.message ? `: ${result.message}` : '.'}`
+                    )
+                    setSyncState('error')
+                  }
+                  setTimeout(() => {
+                    setSyncState('idle')
+                    setSyncMessage('')
+                  }, 5000)
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-brand-200 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 disabled:cursor-wait disabled:opacity-50"
+              >
+                <IconReload
+                  className={`h-4 w-4 ${syncState === 'pushing' ? 'animate-spin' : ''}`}
+                />
+                {syncState === 'pushing' ? 'Pushing...' : 'Push now'}
+              </button>
+            }
+          />
           <Row
             label="Data folder"
             desc={settings.dataDir}

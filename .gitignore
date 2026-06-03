@@ -9,6 +9,7 @@ dist/
 
 # Personal Android artifacts and local GitHub sync configuration
 *.apk
+/tools/
 github-sync.json
 pbcompanion-sync.json
 .claude/

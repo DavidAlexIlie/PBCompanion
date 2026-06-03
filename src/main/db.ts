@@ -371,11 +371,19 @@ export function exportSyncSnapshot(): {
     id: number
     slug: string | null
     title: string | null
+    statement_html: string | null
     detected_score: number | null
     user_status: UserStatus | null
     marked: number
     sort_index: number
     updated_at: string
+  }[]
+  attempts: {
+    id: number
+    problemId: number
+    sourceCode: string | null
+    score: number | null
+    submittedAt: string
   }[]
   groups: GroupWithMembers[]
   docs: { problemId: number; notes: string; whiteboard: string; updatedAt: string | null }[]
@@ -395,12 +403,22 @@ export function exportSyncSnapshot(): {
       id: problem.id,
       slug: problem.slug,
       title: problem.title,
+      statement_html: problem.statement_html,
       detected_score: problem.detected_score,
       user_status: problem.user_status,
       marked: problem.marked,
       sort_index: problem.sort_index,
       updated_at: problem.updated_at
     })),
+    attempts: listProblems().flatMap((problem) =>
+      listAttempts(problem.id).map((attempt) => ({
+        id: attempt.id,
+        problemId: attempt.problem_id,
+        sourceCode: attempt.source_code,
+        score: attempt.score,
+        submittedAt: attempt.submitted_at
+      }))
+    ),
     groups: listGroups().map((group) => ({ ...group, folder_path: null })),
     docs: docs.map((doc) => ({
       problemId: doc.problem_id,

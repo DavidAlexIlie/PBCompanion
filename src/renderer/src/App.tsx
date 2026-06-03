@@ -6,6 +6,7 @@ import Home from './components/Home'
 import Board from './components/Board'
 import GroupsTab from './components/GroupsTab'
 import SettingsView from './components/SettingsView'
+import CppWorkspace from './components/CppWorkspace'
 import ProblemDetail from './components/ProblemDetail'
 import Splitter, { usePersistentNumber, clamp } from './components/Splitter'
 
@@ -91,6 +92,8 @@ export default function App(): JSX.Element {
         return <Home />
       case 'board':
         return <Board />
+      case 'workspace':
+        return <CppWorkspace />
       case 'groups':
         return <GroupsTab />
       case 'settings':

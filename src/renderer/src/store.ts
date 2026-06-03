@@ -7,7 +7,7 @@ import type {
   UserStatus
 } from '../../shared/types'
 
-export type Route = 'home' | 'board' | 'groups' | 'settings'
+export type Route = 'home' | 'board' | 'workspace' | 'groups' | 'settings'
 
 interface State {
   problems: Problem[]

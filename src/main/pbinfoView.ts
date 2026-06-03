@@ -11,7 +11,7 @@
  */
 import { WebContentsView, BrowserWindow, session, ipcMain } from 'electron'
 import { join } from 'path'
-import type { ViewBounds, PbinfoNavState } from '../shared/types'
+import type { ViewBounds, PbinfoNavState, SubmitSolutionResult } from '../shared/types'
 import { installAdblock } from './adblock'
 
 const PBINFO_HOME = 'https://www.pbinfo.ro/'
@@ -22,6 +22,11 @@ let win: BrowserWindow | null = null
 let currentBounds: ViewBounds = { x: 0, y: 0, width: 0, height: 0, visible: false }
 let authReloadTimer: ReturnType<typeof setTimeout> | null = null
 let lastAuthReloadAt = 0
+let lastProblemId: number | null = null
+
+export function rememberLastProblem(problemId: number): void {
+  lastProblemId = problemId
+}
 
 export function getNavState(): PbinfoNavState {
   if (!view) return { url: '', canGoBack: false, canGoForward: false, loading: false }
@@ -111,6 +116,46 @@ export function goForward(): void {
 
 export function reload(): void {
   view?.webContents.reload()
+}
+
+export async function submitSolution(
+  problemId: number,
+  sourceCode: string
+): Promise<SubmitSolutionResult> {
+  const wc = view?.webContents
+  if (!wc || wc.isDestroyed()) return { ok: false, message: 'pbinfo browser is not available.' }
+  if (lastProblemId !== problemId) {
+    return {
+      ok: false,
+      message: 'Open this exact problem in the pbinfo browser before submitting.'
+    }
+  }
+  try {
+    if (!wc.getURL().includes(`/probleme/${problemId}`)) {
+      return { ok: false, message: 'The pbinfo browser is no longer on the selected problem.' }
+    }
+    const result = (await wc.executeJavaScript(`
+      (() => {
+        const form = document.querySelector('#form-incarcare-solutie');
+        const textarea = form?.querySelector('textarea[name="sursa"]');
+        const button = form?.querySelector('#btn-submit');
+        if (!form || !textarea || !button) {
+          return { ok: false, message: 'Submission form not found. Make sure you are logged in.' };
+        }
+        const source = ${JSON.stringify(sourceCode)};
+        const cm = form.querySelector('.CodeMirror')?.CodeMirror;
+        if (cm?.setValue) cm.setValue(source);
+        textarea.value = source;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('change', { bubbles: true }));
+        button.click();
+        return { ok: true };
+      })()
+    `)) as SubmitSolutionResult
+    return result
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : 'Submission failed.' }
+  }
 }
 
 /**

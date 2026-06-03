@@ -11,7 +11,7 @@
     "start": "electron-vite preview",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "dist": "electron-vite build && electron-builder --win"
+    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-compiler.ps1 && electron-vite build && electron-builder --win"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1"
@@ -43,6 +43,12 @@
     "productName": "PBCompanion",
     "directories": { "output": "release" },
     "files": ["out/**/*", "resources/icon.png", "resources/icon.ico"],
+    "extraResources": [
+      {
+        "from": "tools/mingw64/w64devkit",
+        "to": "tools/w64devkit"
+      }
+    ],
     "asarUnpack": ["**/*.node", "**/better-sqlite3/**"],
     "win": {
       "target": "nsis",

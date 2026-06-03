@@ -6,8 +6,15 @@ import * as pb from './pbinfoView'
 import { attachSessionPersistence, flushSession, onPbinfoCookieChanged } from './sessionPersist'
 import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
-import { startDesktopSync, stopDesktopSync } from './sync'
-import type { ViewBounds, UserStatus, DetectedProblem, DetectedVerdict } from '../shared/types'
+import { pushSnapshot, startDesktopSync, stopDesktopSync } from './sync'
+import { compileAndRun } from './compiler'
+import type {
+  ViewBounds,
+  UserStatus,
+  DetectedProblem,
+  DetectedVerdict,
+  ProblemIoFiles
+} from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -39,6 +46,7 @@ function createWindow(): void {
       // Refresh cached metadata for problems we already know (keeps title/
       // statement fresh). New problems are only created via the NEW button.
       const p = payload as DetectedProblem
+      pb.rememberLastProblem(p.id)
       if (db.getProblem(p.id)) {
         db.refreshProblemMeta(p)
         notifyDataChanged()
@@ -190,6 +198,24 @@ function registerIpc(): void {
     notifyDataChanged()
     return out
   })
+  ipcMain.handle('sync:pushNow', () => pushSnapshot(true))
+  ipcMain.handle(
+    'workspace:compileRun',
+    (
+      _e,
+      {
+        problemId,
+        source,
+        input,
+        ioFiles
+      }: { problemId: number; source: string; input: string; ioFiles: ProblemIoFiles }
+    ) => compileAndRun(settings.getSettings().dataDir, problemId, source, input, ioFiles)
+  )
+  ipcMain.handle(
+    'workspace:submit',
+    (_e, { problemId, source }: { problemId: number; source: string }) =>
+      pb.submitSolution(problemId, source)
+  )
   ipcMain.handle('app:resetSession', async () => {
     await pb.clearPbinfoSession()
     pb.navigate('https://www.pbinfo.ro/')
@@ -210,6 +236,7 @@ function registerIpc(): void {
     if (res.canceled || !res.filePaths[0]) return null
     settings.writeBootConfig({ dataDir: res.filePaths[0] })
     db.initDb(res.filePaths[0])
+    startDesktopSync(res.filePaths[0])
     notifyDataChanged()
     return res.filePaths[0]
   })

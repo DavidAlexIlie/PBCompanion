@@ -26,7 +26,9 @@ import {
   extractSourceCode,
   extractLatestSubmissionVerdict,
   extractLatestSubmissionId,
-  extractDetailedEvaluationScore
+  extractDetailedEvaluationScore,
+  extractDetailedEvaluationFingerprint,
+  extractDetailedEvaluationStats
 } from './pbinfoSelectors'
 import { cleanProblemName } from '../shared/text'
 
@@ -64,12 +66,15 @@ let lastProblemId: number | null = null
 // verdict reader consumes it exactly once when the score appears.
 const PENDING_KEY = 'pbcompanion:pendingSubmit'
 const PENDING_TTL_MS = 30 * 60 * 1000 // evaluation can sit in a queue a while
+const VERDICT_POLL_MS = 400
+let verdictPollTimer: ReturnType<typeof setInterval> | null = null
 
 interface PendingSubmit {
   problemId: number
   code: string | null
   t: number
   previousSubmissionId: string | null
+  previousEvaluationFingerprint: string | null
   activeSubmissionId?: string | null
 }
 
@@ -89,13 +94,40 @@ function rememberSubmission(): void {
       previousSubmissionId:
         existing && Date.now() - existing.t < 2000
           ? existing.previousSubmissionId
-          : extractLatestSubmissionId(document)
+          : extractLatestSubmissionId(document),
+      previousEvaluationFingerprint:
+        existing && Date.now() - existing.t < 2000
+          ? existing.previousEvaluationFingerprint
+          : extractDetailedEvaluationFingerprint(document)
     }
     sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending))
+    ensureVerdictPolling()
     log('submission observed', problemId, code ? '(code snapshot)' : '(no code)')
   } catch (err) {
     log('rememberSubmission failed (non-fatal)', err)
   }
+}
+
+function pendingForCurrentProblem(): PendingSubmit | null {
+  const problemId = parseProblemUrl(location.href)?.id ?? lastProblemId
+  const pending = readStoredPending()
+  if (!pending) return null
+  return problemId == null || pending.problemId === problemId ? pending : null
+}
+
+/** pbinfo sometimes updates existing text nodes without adding/removing DOM
+ * nodes. Poll only while a submission is pending so those updates cannot be
+ * missed, even when MutationObserver receives no useful event. */
+function ensureVerdictPolling(): void {
+  if (verdictPollTimer) return
+  verdictPollTimer = setInterval(() => {
+    if (!pendingForCurrentProblem()) {
+      clearInterval(verdictPollTimer!)
+      verdictPollTimer = null
+      return
+    }
+    reportVerdict()
+  }, VERDICT_POLL_MS)
 }
 
 function writePending(pending: PendingSubmit): void {
@@ -107,11 +139,15 @@ function writePending(pending: PendingSubmit): void {
 }
 
 function readPending(problemId: number): PendingSubmit | null {
+  const pending = readStoredPending()
+  return pending?.problemId === problemId ? pending : null
+}
+
+function readStoredPending(): PendingSubmit | null {
   try {
     const raw = sessionStorage.getItem(PENDING_KEY)
     if (!raw) return null
     const p = JSON.parse(raw) as PendingSubmit
-    if (p.problemId !== problemId) return null
     if (Date.now() - p.t > PENDING_TTL_MS) {
       sessionStorage.removeItem(PENDING_KEY)
       return null
@@ -133,7 +169,7 @@ function evaluationInProgress(): boolean {
 function reportVerdict(): void {
   try {
     const fromUrl = parseProblemUrl(location.href)?.id ?? null
-    const problemId = fromUrl ?? lastProblemId
+    const problemId = fromUrl ?? lastProblemId ?? readStoredPending()?.problemId ?? null
     if (problemId == null) return
     // No submission we saw → this is a historic score being displayed; ignore.
     const pending = readPending(problemId)
@@ -157,7 +193,8 @@ function reportVerdict(): void {
         writePending(pending)
       }
       const detailed =
-        pending.activeSubmissionId === currentSubmissionId
+        pending.activeSubmissionId === currentSubmissionId &&
+        extractDetailedEvaluationFingerprint(document) !== pending.previousEvaluationFingerprint
           ? extractDetailedEvaluationScore(document)
           : null
       if (detailed === null) return
@@ -177,12 +214,22 @@ function finishVerdict(problemId: number, score: number, pending: PendingSubmit)
   // The submit-time snapshot is tied to this attempt. Page-level code after
   // evaluation may be an example, official solution, or historical source.
   const sourceCode = pending.code ?? extractSourceCode(document)
+  const stats =
+    extractDetailedEvaluationFingerprint(document) !== pending.previousEvaluationFingerprint
+      ? extractDetailedEvaluationStats(document)
+      : null
   sessionStorage.removeItem(PENDING_KEY) // consume once
+  if (verdictPollTimer) {
+    clearInterval(verdictPollTimer)
+    verdictPollTimer = null
+  }
   ipcRenderer.send('pbinfo:verdict-detected', {
     problemId,
     score,
     sourceCode,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    testsTotal: stats?.total,
+    testsFailed: stats?.failed
   })
   log('verdict detected', problemId, score, sourceCode ? '(code captured)' : '(no code)')
 }
@@ -257,6 +304,7 @@ function init(): void {
   announcePage()
   watchSubmissions()
   scan()
+  if (pendingForCurrentProblem()) ensureVerdictPolling()
 
   // Watch for verdicts / late-rendered statements appearing in the DOM.
   // Constrained to subtree text changes; debounced.
@@ -272,7 +320,12 @@ function init(): void {
   }
   try {
     const obs = new MutationObserver(schedule)
-    obs.observe(document.documentElement, { childList: true, subtree: true })
+    obs.observe(document.documentElement, {
+      childList: true,
+      characterData: true,
+      attributes: true,
+      subtree: true
+    })
   } catch (err) {
     log('MutationObserver unavailable (non-fatal)', err)
   }

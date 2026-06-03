@@ -63,6 +63,29 @@ export interface DetectedVerdict {
   score: number | null
   sourceCode: string | null
   timestamp: string
+  testsTotal?: number
+  testsFailed?: number
+}
+
+export interface CompileRunResult {
+  ok: boolean
+  phase: 'compile' | 'run' | 'compiler_missing'
+  stdout: string
+  stderr: string
+  exitCode: number | null
+  timedOut: boolean
+  compiler?: string
+  outputFile?: string
+}
+
+export interface SubmitSolutionResult {
+  ok: boolean
+  message?: string
+}
+
+export interface ProblemIoFiles {
+  inputFile: string | null
+  outputFile: string | null
 }
 
 // The webview layout region reported by the renderer to position the WebContentsView.

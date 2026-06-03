@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -27,6 +27,8 @@ export default function GroupsTab(): JSX.Element {
   const [activeId, setActiveId] = useState<number | null>(null)
   const [libW, setLibW] = usePersistentNumber('layout.groupsLib', 460)
   const baseLib = useRef(0)
+  const layoutRef = useRef<HTMLDivElement>(null)
+  const [compact, setCompact] = useState(false)
 
   // New-group form state
   const [name, setName] = useState('')
@@ -39,6 +41,16 @@ export default function GroupsTab(): JSX.Element {
   const [confirmDel, setConfirmDel] = useState<GroupWithMembers | null>(null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+
+  useEffect(() => {
+    const node = layoutRef.current
+    if (!node) return
+    const update = (): void => setCompact(node.clientWidth < 760)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
 
   const createGroup = async (): Promise<void> => {
     const trimmed = name.trim()
@@ -69,14 +81,26 @@ export default function GroupsTab(): JSX.Element {
       onDragStart={(e: DragStartEvent) => setActiveId(Number(e.active.id))}
       onDragEnd={onDragEnd}
     >
-      <div className="flex h-full min-h-0">
+      <div
+        ref={layoutRef}
+        className={`flex h-full min-h-0 min-w-0 ${compact ? 'flex-col overflow-y-auto' : ''}`}
+      >
         {/* Left: library of all problems */}
-        <div style={{ width: libW }} className="flex shrink-0 flex-col border-r border-slate-200 bg-white">
-          <div className="px-6 pb-2 pt-6">
+        <div
+          style={compact ? undefined : { width: libW }}
+          className={`flex shrink-0 flex-col bg-white ${
+            compact ? 'max-h-56 w-full border-b border-slate-200' : 'border-r border-slate-200'
+          }`}
+        >
+          <div className={compact ? 'px-4 pb-1 pt-4' : 'px-6 pb-2 pt-6'}>
             <h1 className="text-xl font-bold text-slate-900">Library</h1>
             <p className="text-sm text-slate-500">Drag a problem into a group on the right.</p>
           </div>
-          <div className="flex flex-1 flex-wrap content-start gap-4 overflow-y-auto p-6">
+          <div
+            className={`flex flex-1 content-start gap-4 overflow-auto ${
+              compact ? 'flex-nowrap px-4 pb-4 pt-2' : 'flex-wrap p-6'
+            }`}
+          >
             {problems.length === 0 && (
               <div className="m-auto text-sm text-slate-400">No problems registered yet.</div>
             )}
@@ -85,14 +109,20 @@ export default function GroupsTab(): JSX.Element {
             ))}
           </div>
         </div>
-        <Splitter
-          onStart={() => (baseLib.current = libW)}
-          onResize={(dx) => setLibW(clamp(baseLib.current + dx, 300, window.innerWidth - 520))}
-        />
+        {!compact && (
+          <Splitter
+            onStart={() => (baseLib.current = libW)}
+            onResize={(dx) => setLibW(clamp(baseLib.current + dx, 300, window.innerWidth - 520))}
+          />
+        )}
 
         {/* Right: group creator + groups */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div
+          className={`flex min-w-0 flex-1 flex-col bg-slate-50 ${
+            compact ? 'overflow-visible p-3' : 'overflow-y-auto p-6'
+          }`}
+        >
+          <div className="w-full min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">New group</h2>
             <div className="mt-3 flex flex-col gap-3">
               <input
@@ -114,9 +144,12 @@ export default function GroupsTab(): JSX.Element {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div
+            className="mt-5 grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}
+          >
             {groups.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-slate-400 xl:col-span-2">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-slate-400">
                 No groups yet. Create one above — it becomes a real folder on disk too.
               </div>
             )}
@@ -181,42 +214,46 @@ export default function GroupsTab(): JSX.Element {
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }): JSX.Element {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-12 text-xs text-slate-400">Color</span>
-      {COLORS.map((c) => (
-        <button
-          key={c}
-          onClick={() => onChange(c)}
-          className={`h-6 w-6 rounded-full ring-2 ring-offset-2 transition ${
-            value === c ? 'ring-slate-400' : 'ring-transparent'
-          }`}
-          style={{ backgroundColor: c }}
-        />
-      ))}
+    <div className="flex min-w-0 items-start gap-2">
+      <span className="w-12 shrink-0 pt-1.5 text-xs text-slate-400">Color</span>
+      <div className="flex min-w-0 flex-wrap gap-2">
+        {COLORS.map((c) => (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            className={`h-6 w-6 shrink-0 rounded-full ring-2 ring-offset-2 transition ${
+              value === c ? 'ring-slate-400' : 'ring-transparent'
+            }`}
+            style={{ backgroundColor: c }}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
 function IconPicker({ value, onChange }: { value: string; onChange: (k: string) => void }): JSX.Element {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-12 text-xs text-slate-400">Icon</span>
-      {ICON_KEYS.map((k) => {
-        const Ico = GROUP_ICONS[k]
-        return (
-          <button
-            key={k}
-            onClick={() => onChange(k)}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-              value === k
-                ? 'border-brand-400 bg-brand-50 text-brand-600'
-                : 'border-slate-200 text-slate-400 hover:bg-slate-50'
-            }`}
-          >
-            <Ico className="h-5 w-5" />
-          </button>
-        )
-      })}
+    <div className="flex min-w-0 items-start gap-2">
+      <span className="w-12 shrink-0 pt-2 text-xs text-slate-400">Icon</span>
+      <div className="flex min-w-0 flex-wrap gap-2">
+        {ICON_KEYS.map((k) => {
+          const Ico = GROUP_ICONS[k]
+          return (
+            <button
+              key={k}
+              onClick={() => onChange(k)}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition ${
+                value === k
+                  ? 'border-brand-400 bg-brand-50 text-brand-600'
+                  : 'border-slate-200 text-slate-400 hover:bg-slate-50'
+              }`}
+            >
+              <Ico className="h-5 w-5" />
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -324,7 +361,7 @@ function GroupCard({
     <div
       ref={setNodeRef}
       onContextMenu={onMenu}
-      className={`relative rounded-2xl border bg-white p-4 shadow-soft transition ${
+      className={`relative min-w-0 rounded-2xl border bg-white p-4 shadow-soft transition ${
         isOver ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200'
       }`}
     >

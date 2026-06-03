@@ -10,8 +10,13 @@ interface SyncConfig {
   gistId: string
 }
 
+export type SyncResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_configured' | 'busy' | 'failed'; message?: string }
+
 let timer: ReturnType<typeof setInterval> | null = null
 let running = false
+let runningPush: Promise<SyncResult> | null = null
 let activeDataDir = ''
 
 export function startDesktopSync(dataDir: string): void {
@@ -26,17 +31,35 @@ export function stopDesktopSync(): void {
   timer = null
 }
 
-async function pushSnapshot(): Promise<void> {
-  if (running || !activeDataDir) return
+export async function pushSnapshot(forceAfterCurrent = false): Promise<SyncResult> {
+  if (runningPush) {
+    if (!forceAfterCurrent) return { ok: false, reason: 'busy' }
+    await runningPush
+  }
+  runningPush = performPush()
+  try {
+    return await runningPush
+  } finally {
+    runningPush = null
+  }
+}
+
+async function performPush(): Promise<SyncResult> {
+  if (!activeDataDir) return { ok: false, reason: 'not_configured' }
   const config = readConfig(activeDataDir)
-  if (!config) return
+  if (!config) return { ok: false, reason: 'not_configured' }
   running = true
   try {
     const snapshotPath = join(activeDataDir, GIST_FILENAME)
     writeFileSync(snapshotPath, JSON.stringify(db.exportSyncSnapshot(), null, 2), 'utf-8')
     await editGist(config.gistId, snapshotPath)
-  } catch {
-    // Sync is best-effort and must never interrupt local work.
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'failed',
+      message: error instanceof Error ? error.message : 'Unknown sync error'
+    }
   } finally {
     running = false
   }
@@ -46,7 +69,8 @@ function readConfig(dataDir: string): SyncConfig | null {
   try {
     const path = join(dataDir, 'github-sync.json')
     if (!existsSync(path)) return null
-    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as Partial<SyncConfig>
+    const text = readFileSync(path, 'utf-8').replace(/^\uFEFF/, '')
+    const parsed = JSON.parse(text) as Partial<SyncConfig>
     return typeof parsed.gistId === 'string' && parsed.gistId ? { gistId: parsed.gistId } : null
   } catch {
     return null

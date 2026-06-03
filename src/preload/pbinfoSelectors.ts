@@ -233,12 +233,15 @@ export function extractDetailedEvaluationScore(doc: Document): number | null {
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
     if (!/scor posibil/.test(heading) || !/scor obtinut/.test(heading)) return null
+    const rows = Array.from(table.querySelectorAll('tbody tr'))
+    if (!rows.length) return null
     const scores: number[] = []
-    for (const row of Array.from(table.querySelectorAll('tbody tr'))) {
+    for (const row of rows) {
       const cells = Array.from(row.querySelectorAll(':scope > td'))
       const text = cells[cells.length - 1]?.textContent?.trim() || ''
       const match = text.match(/^(100|[1-9]?\d)(?:[.,](\d+))?$/)
-      if (!match) continue
+      // A partially-filled evaluation table is still in progress.
+      if (!match) return null
       scores.push(Number(text.replace(',', '.')))
     }
     if (!scores.length) return null
@@ -247,6 +250,34 @@ export function extractDetailedEvaluationScore(doc: Document): number | null {
   } catch {
     return null
   }
+}
+
+export function extractDetailedEvaluationStats(
+  doc: Document
+): { total: number; failed: number } | null {
+  try {
+    const rows = Array.from(doc.querySelectorAll('#detalii-evaluare table tbody tr'))
+    if (!rows.length) return null
+    let failed = 0
+    for (const row of rows) {
+      const cells = Array.from(row.querySelectorAll(':scope > td'))
+      if (cells.length < 2) return null
+      const possible = Number((cells[cells.length - 2]?.textContent ?? '').trim().replace(',', '.'))
+      const obtained = Number((cells[cells.length - 1]?.textContent ?? '').trim().replace(',', '.'))
+      if (!Number.isFinite(possible) || !Number.isFinite(obtained)) return null
+      if (obtained < possible) failed++
+    }
+    return { total: rows.length, failed }
+  } catch {
+    return null
+  }
+}
+
+/** Used to distinguish the previous evaluation table from the one generated
+ * for the submission that was just sent. */
+export function extractDetailedEvaluationFingerprint(doc: Document): string | null {
+  const text = doc.querySelector('#detalii-evaluare table')?.textContent
+  return text ? text.replace(/\s+/g, ' ').trim() : null
 }
 
 // --- Submitted source code (best-effort) --------------------------------

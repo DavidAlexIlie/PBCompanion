@@ -14,7 +14,10 @@ import type {
   DetectedProblem,
   DetectedVerdict,
   ViewBounds,
-  PbinfoNavState
+  PbinfoNavState,
+  CompileRunResult,
+  SubmitSolutionResult,
+  ProblemIoFiles
 } from '../shared/types'
 
 const api = {
@@ -72,6 +75,19 @@ const api = {
   clearLocalData: (): Promise<void> => ipcRenderer.invoke('app:clearLocalData'),
   openDataDir: (): Promise<void> => ipcRenderer.invoke('app:openDataDir'),
   chooseDataDir: (): Promise<string | null> => ipcRenderer.invoke('app:chooseDataDir'),
+  pushSyncNow: (): Promise<
+    { ok: true } | { ok: false; reason: 'not_configured' | 'busy' | 'failed'; message?: string }
+  > => ipcRenderer.invoke('sync:pushNow'),
+
+  compileAndRun: (
+    problemId: number,
+    source: string,
+    input: string,
+    ioFiles: ProblemIoFiles
+  ): Promise<CompileRunResult> =>
+    ipcRenderer.invoke('workspace:compileRun', { problemId, source, input, ioFiles }),
+  submitSolution: (problemId: number, source: string): Promise<SubmitSolutionResult> =>
+    ipcRenderer.invoke('workspace:submit', { problemId, source }),
 
   // ---- pbinfo webview control ----
   navigatePbinfo: (url: string): Promise<void> => ipcRenderer.invoke('pbinfo:navigate', url),
