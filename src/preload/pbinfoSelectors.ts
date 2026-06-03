@@ -287,32 +287,37 @@ function directLinesFrom(root: Element): string | null {
 }
 
 export function extractSourceCode(doc: Document): string | null {
+  const submissionForm = doc.querySelector('#form-incarcare-solutie')
+  const editorScope: ParentNode = submissionForm ?? doc
+
   // Prefer CodeMirror's authoritative value over its rendered line/gutter DOM.
-  const cmWrapper = doc.querySelector('.CodeMirror') as
+  const cmWrapper = editorScope.querySelector('.CodeMirror') as
     | (HTMLElement & { CodeMirror?: { getValue?: () => string } })
     | null
   const cmValue = cmWrapper?.CodeMirror?.getValue?.()
   if (cmValue?.trim()) return cleanSourceCode(cmValue)
 
   // pbinfo synchronizes CodeMirror into this hidden textarea during submit.
-  const sourceTextarea = doc.querySelector('textarea[name="sursa"]') as HTMLTextAreaElement | null
+  const sourceTextarea = editorScope.querySelector(
+    'textarea[name="sursa"]'
+  ) as HTMLTextAreaElement | null
   if (sourceTextarea?.value.trim()) return cleanSourceCode(sourceTextarea.value)
 
   // CodeMirror 5 / 6: visual lines as .CodeMirror-line / .cm-line.
-  const cm = doc.querySelector('.CodeMirror-code, .cm-content')
+  const cm = editorScope.querySelector('.CodeMirror-code, .cm-content')
   if (cm) {
     const t = linesFrom(cm, '.CodeMirror-line, .cm-line') ?? directLinesFrom(cm)
     if (t) return cleanSourceCode(t)
   }
   // Ace editor: .ace_line inside the content layer (gutter is separate).
-  const ace = doc.querySelector('.ace_content, .ace_editor')
+  const ace = editorScope.querySelector('.ace_content, .ace_editor')
   if (ace) {
     const t = linesFrom(ace, '.ace_line')
     if (t) return cleanSourceCode(t)
   }
   for (const sel of SOURCE_SELECTORS) {
     try {
-      const el = doc.querySelector(sel)
+      const el = editorScope.querySelector(sel)
       if (!el) continue
       if (el instanceof HTMLTextAreaElement && el.value.trim()) return cleanSourceCode(el.value)
       const t = el.textContent
