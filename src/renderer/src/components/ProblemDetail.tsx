@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify'
 import { useStore } from '../store'
 import { scoreBand, bandTag } from '../lib/score'
 import { cleanProblemName } from '../../../shared/text'
-import { IconClose, IconTrash, IconExternal } from './icons'
+import { IconClose, IconTrash, IconExternal, IconNote, IconBoard } from './icons'
 import type { Attempt } from '../../../shared/types'
 
 export default function ProblemDetail({ problemId }: { problemId: number }): JSX.Element {
@@ -15,6 +15,11 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
     window.api.listAttempts(problemId).then(setAttempts)
   }
   useEffect(loadAttempts, [problemId, problems])
+
+  // Closing the problem closes its Notes + Whiteboard windows (they autosave).
+  useEffect(() => {
+    return () => void window.api.closeProblemPanels(problemId)
+  }, [problemId])
 
   if (!problem || !settings) return <div />
   const band = scoreBand(problem.detected_score, settings)
@@ -69,9 +74,18 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
 
         {/* Actions */}
         <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-3">
-          <span className="text-sm text-slate-500">
-            Status is set by dragging on the Progress Board.
-          </span>
+          <button
+            onClick={() => window.api.openPanel('notes', problem.id)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <IconNote className="h-4 w-4" /> Notes
+          </button>
+          <button
+            onClick={() => window.api.openPanel('whiteboard', problem.id)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <IconBoard className="h-4 w-4" /> Whiteboard
+          </button>
           <button
             onClick={openInPbinfo}
             className="ml-auto flex items-center gap-1.5 rounded-lg border border-brand-200 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50"

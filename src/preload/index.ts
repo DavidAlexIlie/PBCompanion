@@ -50,6 +50,18 @@ const api = {
   removeProblemFromGroup: (groupId: number, problemId: number): Promise<void> =>
     ipcRenderer.invoke('groups:removeProblem', { groupId, problemId }),
 
+  // ---- per-problem notes + whiteboard ----
+  getDoc: (id: number): Promise<{ notes: string; whiteboard: string }> =>
+    ipcRenderer.invoke('doc:get', id),
+  saveNotes: (id: number, notes: string): Promise<void> =>
+    ipcRenderer.invoke('doc:saveNotes', { id, notes }),
+  saveWhiteboard: (id: number, whiteboard: string): Promise<void> =>
+    ipcRenderer.invoke('doc:saveWhiteboard', { id, whiteboard }),
+  openPanel: (type: 'notes' | 'whiteboard', id: number): Promise<void> =>
+    ipcRenderer.invoke('panel:open', { type, id }),
+  closeProblemPanels: (id: number): Promise<void> =>
+    ipcRenderer.invoke('panel:closeForProblem', id),
+
   // ---- settings ----
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
   setSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>

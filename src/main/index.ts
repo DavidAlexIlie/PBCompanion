@@ -4,6 +4,7 @@ import * as db from './db'
 import * as settings from './settings'
 import * as pb from './pbinfoView'
 import { attachSessionPersistence, flushSession } from './sessionPersist'
+import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
 import type { ViewBounds, UserStatus, DetectedProblem, DetectedVerdict } from '../shared/types'
 
@@ -97,6 +98,21 @@ function registerIpc(): void {
     db.setProblemMarked(id, marked)
     notifyDataChanged()
   })
+
+  // ---- per-problem notes + whiteboard ----
+  ipcMain.handle('doc:get', (_e, id: number) => db.getProblemDoc(id))
+  ipcMain.handle('doc:saveNotes', (_e, { id, notes }: { id: number; notes: string }) =>
+    db.saveProblemNotes(id, notes)
+  )
+  ipcMain.handle(
+    'doc:saveWhiteboard',
+    (_e, { id, whiteboard }: { id: number; whiteboard: string }) =>
+      db.saveProblemWhiteboard(id, whiteboard)
+  )
+  ipcMain.handle('panel:open', (_e, { type, id }: { type: 'notes' | 'whiteboard'; id: number }) => {
+    if (mainWindow) openPanel(mainWindow, type, id, join(__dirname, '../preload/index.js'))
+  })
+  ipcMain.handle('panel:closeForProblem', (_e, id: number) => closeProblemPanels(id))
 
   // ---- attempts ----
   ipcMain.handle('attempts:list', (_e, problemId: number) => db.listAttempts(problemId))

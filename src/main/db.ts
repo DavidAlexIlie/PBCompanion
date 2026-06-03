@@ -62,6 +62,15 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT
 );
+
+-- Per-problem notes + whiteboard. Kept out of the problems row so listing
+-- problems never drags along (potentially large) whiteboard data.
+CREATE TABLE IF NOT EXISTS problem_docs (
+  problem_id INTEGER PRIMARY KEY REFERENCES problems(id) ON DELETE CASCADE,
+  notes      TEXT,
+  whiteboard TEXT,
+  updated_at TEXT
+);
 `
 
 export function initDb(dataDir: string): Database.Database {
@@ -166,6 +175,31 @@ export function setProblemMarked(id: number, marked: boolean): void {
   getDb()
     .prepare('UPDATE problems SET marked=?, updated_at=? WHERE id=?')
     .run(marked ? 1 : 0, now(), id)
+}
+
+// ---- per-problem notes + whiteboard -----------------------------------
+export function getProblemDoc(id: number): { notes: string; whiteboard: string } {
+  const row = getDb()
+    .prepare('SELECT notes, whiteboard FROM problem_docs WHERE problem_id=?')
+    .get(id) as { notes: string | null; whiteboard: string | null } | undefined
+  return { notes: row?.notes ?? '', whiteboard: row?.whiteboard ?? '' }
+}
+
+function upsertDoc(id: number, field: 'notes' | 'whiteboard', value: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO problem_docs (problem_id, ${field}, updated_at) VALUES (?,?,?)
+       ON CONFLICT(problem_id) DO UPDATE SET ${field}=excluded.${field}, updated_at=excluded.updated_at`
+    )
+    .run(id, value, now())
+}
+
+export function saveProblemNotes(id: number, notes: string): void {
+  upsertDoc(id, 'notes', notes)
+}
+
+export function saveProblemWhiteboard(id: number, whiteboard: string): void {
+  upsertDoc(id, 'whiteboard', whiteboard)
 }
 
 /** Apply a detected score; auto-move to Completed on >=threshold only when the
