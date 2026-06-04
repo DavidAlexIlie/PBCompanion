@@ -71,6 +71,11 @@ function createWindow(): void {
 
   // Reposition the embedded view when the window resizes.
   mainWindow.on('resize', () => pb.reapplyBounds())
+  // Windows can terminate apps during sign-out/shutdown without waiting for
+  // Electron's normal before-quit path. Start the cookie flush immediately.
+  mainWindow.on('session-end', () => {
+    void flushSession()
+  })
   mainWindow.on('closed', () => (mainWindow = null))
 
   if (process.env['ELECTRON_RENDERER_URL']) {

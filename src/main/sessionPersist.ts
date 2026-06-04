@@ -12,7 +12,7 @@
  */
 import { session, safeStorage } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs'
 
 interface StoredCookie {
   url: string
@@ -39,6 +39,8 @@ function cookieUrl(c: Electron.Cookie): string {
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let activeSes: Electron.Session | null = null
 let activeDir = ''
+let periodicSave: ReturnType<typeof setInterval> | null = null
+let runningSave: Promise<void> | null = null
 let cookieChangedHandler: ((cookie: Electron.Cookie, cause: string, removed: boolean) => void) | null =
   null
 
@@ -59,17 +61,28 @@ export async function attachSessionPersistence(partition: string, dataDir: strin
   // Save shortly after any cookie change...
   ses.cookies.on('changed', (_event, cookie, cause, removed) => {
     if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(() => void save(ses, dataDir), 1000)
+    saveTimer = setTimeout(() => void queueSave(ses, dataDir), 250)
     cookieChangedHandler?.(cookie, cause, removed)
   })
-  // ...and on a steady cadence, so a fresh login is backed up within ~15s even
+  // ...and on a steady cadence, so a fresh login is backed up within ~5s even
   // if the app is closed abruptly.
-  setInterval(() => void save(ses, dataDir), 15000)
+  if (periodicSave) clearInterval(periodicSave)
+  periodicSave = setInterval(() => void queueSave(ses, dataDir), 5000)
+  await queueSave(ses, dataDir)
 }
 
 /** Force an immediate save (call on app quit). */
 export async function flushSession(): Promise<void> {
-  if (activeSes) await save(activeSes, activeDir)
+  if (saveTimer) clearTimeout(saveTimer)
+  if (activeSes) await queueSave(activeSes, activeDir)
+}
+
+function queueSave(ses: Electron.Session, dataDir: string): Promise<void> {
+  if (runningSave) return runningSave
+  runningSave = save(ses, dataDir).finally(() => {
+    runningSave = null
+  })
+  return runningSave
 }
 
 async function save(ses: Electron.Session, dataDir: string): Promise<void> {
@@ -89,10 +102,13 @@ async function save(ses: Electron.Session, dataDir: string): Promise<void> {
     const json = Buffer.from(JSON.stringify(stored), 'utf-8')
     const blob = safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(json.toString('utf-8')) : json
     mkdirSync(dataDir, { recursive: true })
-    writeFileSync(fileFor(dataDir), blob)
+    const target = fileFor(dataDir)
+    const temp = `${target}.tmp`
+    writeFileSync(temp, blob)
+    renameSync(temp, target)
     // Ask Chromium to flush its persistent partition too. The encrypted mirror
     // remains the reinstall-safe backup; this keeps normal restarts reliable.
-    ses.flushStorageData()
+    await ses.flushStorageData()
   } catch {
     /* non-fatal: login will simply rely on the partition cache */
   }
@@ -110,6 +126,7 @@ async function restore(ses: Electron.Session, dataDir: string): Promise<void> {
       jsonText = raw.toString('utf-8') // file may be plaintext from a no-keychain run
     }
     const stored = JSON.parse(jsonText) as StoredCookie[]
+    const persistentSessionExpiry = Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60
     for (const c of stored) {
       try {
         await ses.cookies.set({
@@ -120,13 +137,17 @@ async function restore(ses: Electron.Session, dataDir: string): Promise<void> {
           path: c.path,
           secure: c.secure,
           httpOnly: c.httpOnly,
-          expirationDate: c.expirationDate,
+          // pbinfo's login is normally a session cookie. Persist the restored
+          // copy locally so Windows shutdown cannot remove it before the app
+          // gets a chance to restore the encrypted mirror.
+          expirationDate: c.expirationDate ?? persistentSessionExpiry,
           sameSite: c.sameSite
         })
       } catch {
         /* skip a cookie that won't set; others may still work */
       }
     }
+    await ses.flushStorageData()
   } catch {
     /* ignore corrupt/missing file */
   }
