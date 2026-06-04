@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from './store'
 import Sidebar from './components/Sidebar'
 import BrowseToolbar from './components/BrowseToolbar'
@@ -63,10 +63,18 @@ export default function App(): JSX.Element {
   const baseWebview = useRef(0)
 
   const webviewSlot = useRef<HTMLDivElement>(null)
+  const [overlayOpen, setOverlayOpen] = useState(false)
+  useEffect(() => {
+    const update = (): void => setOverlayOpen(Boolean(document.querySelector('[data-pbinfo-overlay]')))
+    update()
+    const observer = new MutationObserver(update)
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [])
   // The embedded browser hides while a modal/detail panel is open (so the panel
   // isn't occluded) and while resizing (so a splitter under it still gets
   // pointer events).
-  const webviewVisible = showWebview && detailProblemId === null && !resizing
+  const webviewVisible = showWebview && detailProblemId === null && !resizing && !overlayOpen
   useWebviewBounds(webviewSlot, webviewVisible)
 
   useEffect(() => {

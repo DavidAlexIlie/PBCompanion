@@ -278,7 +278,7 @@ function GroupEditModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-6" onMouseDown={onClose}>
+    <div data-pbinfo-overlay className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-6" onMouseDown={onClose}>
       <div
         className="w-[420px] max-w-[92vw] animate-pop-in rounded-2xl bg-white p-6 shadow-lift"
         onMouseDown={(e) => e.stopPropagation()}

@@ -45,6 +45,7 @@ export default function ContextMenu({
   return (
     <div
       ref={ref}
+      data-pbinfo-overlay
       style={{ left, top }}
       className="fixed z-[60] min-w-[180px] animate-pop-in rounded-xl border border-slate-200 bg-white p-1.5 shadow-lift"
     >

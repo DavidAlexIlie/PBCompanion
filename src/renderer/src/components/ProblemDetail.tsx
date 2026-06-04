@@ -41,6 +41,7 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
 
   return (
     <div
+      data-pbinfo-overlay
       className="fixed inset-0 z-50 flex animate-pop-in items-center justify-center bg-slate-900/40 p-6"
       onMouseDown={() => openDetail(null)}
     >
