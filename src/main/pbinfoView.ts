@@ -23,6 +23,7 @@ let currentBounds: ViewBounds = { x: 0, y: 0, width: 0, height: 0, visible: fals
 let authReloadTimer: ReturnType<typeof setTimeout> | null = null
 let lastAuthReloadAt = 0
 let lastProblemId: number | null = null
+let pendingSubmission: unknown = null
 
 export function rememberLastProblem(problemId: number): void {
   lastProblemId = problemId
@@ -211,6 +212,10 @@ export function wireInjectBridge(
     if (!mainWindow.isDestroyed()) mainWindow.webContents.send('detected-verdict', payload)
   })
   ipcMain.on('pbinfo:page-changed', () => pushNavState())
+  ipcMain.on('pbinfo:pending-submit', (_e, payload) => {
+    pendingSubmission = payload
+  })
+  ipcMain.handle('pbinfo:get-pending-submit', () => pendingSubmission)
 }
 
 export function injectPreloadPath(): string {

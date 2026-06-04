@@ -100,7 +100,7 @@ function rememberSubmission(): void {
           ? existing.previousEvaluationFingerprint
           : extractDetailedEvaluationFingerprint(document)
     }
-    sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending))
+    writePending(pending)
     ensureVerdictPolling()
     log('submission observed', problemId, code ? '(code snapshot)' : '(no code)')
   } catch (err) {
@@ -133,8 +133,26 @@ function ensureVerdictPolling(): void {
 function writePending(pending: PendingSubmit): void {
   try {
     sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending))
+    ipcRenderer.send('pbinfo:pending-submit', pending)
   } catch {
     /* ignore */
+  }
+}
+
+async function restorePendingFromMain(): Promise<void> {
+  try {
+    if (readStoredPending()) return
+    const pending = (await ipcRenderer.invoke('pbinfo:get-pending-submit')) as PendingSubmit | null
+    if (!pending || Date.now() - pending.t > PENDING_TTL_MS) {
+      ipcRenderer.send('pbinfo:pending-submit', null)
+      return
+    }
+    writePending(pending)
+    ensureVerdictPolling()
+    reportVerdict()
+    log('pending submission restored', pending.problemId)
+  } catch (err) {
+    log('restorePendingFromMain failed (non-fatal)', err)
   }
 }
 
@@ -174,15 +192,19 @@ function reportVerdict(): void {
     // No submission we saw → this is a historic score being displayed; ignore.
     const pending = readPending(problemId)
     if (!pending) return
-    // Wait until pbinfo inserts a new first row. This proves the pending marker
-    // corresponds to an accepted submission, not just a click or an old page.
     const currentSubmissionId = extractLatestSubmissionId(document)
-    if (
-      pending.previousSubmissionId &&
-      (!currentSubmissionId || currentSubmissionId === pending.previousSubmissionId)
-    ) {
-      return
-    }
+    const currentEvaluationFingerprint = extractDetailedEvaluationFingerprint(document)
+    const hasNewSubmissionRow =
+      currentSubmissionId !== null &&
+      (!pending.previousSubmissionId || currentSubmissionId !== pending.previousSubmissionId)
+    const hasNewEvaluation =
+      currentEvaluationFingerprint !== null &&
+      currentEvaluationFingerprint !== pending.previousEvaluationFingerprint
+
+    // pbinfo sometimes renders the fresh evaluation table before updating the
+    // solutions-list row. Either signal proves this is the submission we saw.
+    // Until one changes, never reuse an older row/table as the new verdict.
+    if (!hasNewSubmissionRow && !hasNewEvaluation) return
 
     // pbinfo leaves old completed attempts visible while the newest one is
     // pending. Prefer only the newest row and never reuse an older row's score.
@@ -193,13 +215,20 @@ function reportVerdict(): void {
         writePending(pending)
       }
       const detailed =
-        pending.activeSubmissionId === currentSubmissionId &&
-        extractDetailedEvaluationFingerprint(document) !== pending.previousEvaluationFingerprint
+        (hasNewEvaluation || hasNewSubmissionRow) &&
+        (!hasNewSubmissionRow || pending.activeSubmissionId === currentSubmissionId)
           ? extractDetailedEvaluationScore(document)
           : null
       if (detailed === null) return
       finishVerdict(problemId, detailed, pending)
       return
+    }
+    if (hasNewEvaluation) {
+      const detailed = extractDetailedEvaluationScore(document)
+      if (detailed !== null) {
+        finishVerdict(problemId, detailed, pending)
+        return
+      }
     }
     if (!latest && evaluationInProgress()) return
     const score = latest?.score ?? extractDetailedEvaluationScore(document) ?? extractScore(document)
@@ -219,6 +248,7 @@ function finishVerdict(problemId: number, score: number, pending: PendingSubmit)
       ? extractDetailedEvaluationStats(document)
       : null
   sessionStorage.removeItem(PENDING_KEY) // consume once
+  ipcRenderer.send('pbinfo:pending-submit', null)
   if (verdictPollTimer) {
     clearInterval(verdictPollTimer)
     verdictPollTimer = null
@@ -305,6 +335,7 @@ function init(): void {
   watchSubmissions()
   scan()
   if (pendingForCurrentProblem()) ensureVerdictPolling()
+  void restorePendingFromMain()
 
   // Watch for verdicts / late-rendered statements appearing in the DOM.
   // Constrained to subtree text changes; debounced.
