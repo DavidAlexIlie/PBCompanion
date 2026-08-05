@@ -308,6 +308,23 @@ function tidyCode(
   return (padLeft ? ' ' : '') + body + (padRight ? ' ' : '')
 }
 
+/**
+ * Apply `transform` to the code of every line, leaving strings, char literals
+ * and comments untouched. Used by the file-I/O conversion, which must not
+ * rewrite a `cout` that appears inside a message or a comment.
+ */
+export function mapCode(source: string, transform: (code: string) => string): string {
+  let inBlockComment = false
+  return source
+    .split('\n')
+    .map((line) => {
+      const scan = scanLine(line, inBlockComment)
+      inBlockComment = scan.inBlockComment
+      return scan.segments.map((s) => (s.code ? transform(s.text) : s.text)).join('')
+    })
+    .join('\n')
+}
+
 export interface CppFormatOptions {
   /** One indentation level. Defaults to four spaces. */
   indent?: string
