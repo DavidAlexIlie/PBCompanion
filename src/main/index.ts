@@ -3,7 +3,12 @@ import { join } from 'path'
 import * as db from './db'
 import * as settings from './settings'
 import * as pb from './pbinfoView'
-import { attachSessionPersistence, flushSession, onPbinfoCookieChanged } from './sessionPersist'
+import {
+  attachSessionPersistence,
+  clearSessionBackup,
+  flushSession,
+  onPbinfoCookieChanged
+} from './sessionPersist'
 import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
 import { pushSnapshot, startDesktopSync, stopDesktopSync } from './sync'
@@ -250,6 +255,7 @@ function registerIpc(): void {
       pb.submitSolution(problemId, source)
   )
   ipcMain.handle('app:resetSession', async () => {
+    clearSessionBackup() // otherwise the next launch restores the old login
     await pb.clearPbinfoSession()
     pb.navigate('https://www.pbinfo.ro/')
   })

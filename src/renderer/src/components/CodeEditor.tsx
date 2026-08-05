@@ -170,9 +170,9 @@ function cppCompletions(context: CompletionContext): CompletionResult | null {
 }
 
 /** Alt+Shift+F — reformat the whole file, keeping the cursor on its line. */
-function formatDocument(view: EditorView): boolean {
+function formatWith(view: EditorView, transform: (source: string) => string): boolean {
   const current = view.state.doc.toString()
-  const formatted = formatCpp(current, { indent: INDENT })
+  const formatted = transform(current)
   if (formatted === current) return true
 
   const line = view.state.doc.lineAt(view.state.selection.main.head).number
@@ -189,16 +189,26 @@ function formatDocument(view: EditorView): boolean {
 interface Props {
   value: string
   onChange: (value: string) => void
+  /** Alt+Shift+F transform. Defaults to plain C++ formatting. */
+  onFormat?: (source: string) => string
   theme: ThemeName
   className?: string
 }
 
-export default function CodeEditor({ value, onChange, theme, className }: Props): JSX.Element {
+export default function CodeEditor({
+  value,
+  onChange,
+  onFormat,
+  theme,
+  className
+}: Props): JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const emit = useRef(onChange)
+  const transform = useRef<(source: string) => string>((s) => formatCpp(s, { indent: INDENT }))
   const themeCompartment = useRef(new Compartment())
   emit.current = onChange
+  transform.current = onFormat ?? ((s) => formatCpp(s, { indent: INDENT }))
 
   useEffect(() => {
     if (!host.current) return
@@ -231,8 +241,8 @@ export default function CodeEditor({ value, onChange, theme, className }: Props)
           keymap.of([
             { key: 'Tab', run: acceptCompletion },
             indentWithTab,
-            { key: 'Alt-Shift-f', run: formatDocument, preventDefault: true },
-            { key: 'Shift-Alt-f', run: formatDocument, preventDefault: true },
+            { key: 'Alt-Shift-f', run: (v) => formatWith(v, transform.current), preventDefault: true },
+            { key: 'Shift-Alt-f', run: (v) => formatWith(v, transform.current), preventDefault: true },
             { key: 'Mod-Shift-z', run: redo, preventDefault: true }
           ])
         ),
@@ -267,4 +277,4 @@ export default function CodeEditor({ value, onChange, theme, className }: Props)
   return <div ref={host} className={className} />
 }
 
-export { formatDocument }
+export { formatWith }

@@ -4,15 +4,7 @@ import CodeEditor from './CodeEditor'
 import type { CompileRunResult, DetectedVerdict, Problem } from '../../../shared/types'
 import { detectProblemIoFiles } from '../../../shared/problemIo'
 import { formatCpp } from '../../../shared/cppFormat'
-
-const STARTER = `#include <iostream>
-using namespace std;
-
-int main() {
-    
-    return 0;
-}
-`
+import { isStarterTemplate, starterFor } from '../../../shared/cppStarter'
 
 export default function CppWorkspace(): JSX.Element {
   const { problems, settings, detected } = useStore()
@@ -24,7 +16,7 @@ export default function CppWorkspace(): JSX.Element {
   const problem = activeProblems.find((p) => p.id === problemId) ?? null
   const ioFiles = useMemo(() => detectProblemIoFiles(problem?.statement_html ?? null), [problem])
   const submitMatchesBrowser = problemId !== null && detected?.id === problemId
-  const [source, setSource] = useState(STARTER)
+  const [source, setSource] = useState(() => starterFor({ inputFile: null, outputFile: null }))
   const [input, setInput] = useState('')
   const [result, setResult] = useState<CompileRunResult | null>(null)
   const [busy, setBusy] = useState<'run' | 'submit' | null>(null)
@@ -36,9 +28,11 @@ export default function CppWorkspace(): JSX.Element {
 
   useEffect(() => {
     if (problemId === null) return
-    setSource(localStorage.getItem(draftKey(problemId)) ?? STARTER)
+    setSource(localStorage.getItem(draftKey(problemId)) ?? starterFor(ioFiles))
     setResult(null)
     setSubmitStatus('Ready to submit')
+    // Only on problem change: a statement arriving later must not wipe typed
+    // code. Format upgrades an untouched skeleton instead.
   }, [problemId])
 
   useEffect(() => {
@@ -58,6 +52,17 @@ export default function CppWorkspace(): JSX.Element {
       }),
     [problemId]
   )
+
+  /**
+   * Format, with one extra job: on a file-I/O problem an untouched skeleton is
+   * replaced by the fstream one (fin/fout on the real file names) instead of
+   * merely being re-indented.
+   */
+  const format = (code: string): string => {
+    const wanted = starterFor(ioFiles)
+    if (isStarterTemplate(code) && code !== wanted) return wanted
+    return formatCpp(code)
+  }
 
   const run = async (): Promise<void> => {
     if (problemId === null) return
@@ -127,7 +132,7 @@ export default function CppWorkspace(): JSX.Element {
               </span>
             )}
             <button
-              onClick={() => setSource(formatCpp(source))}
+              onClick={() => setSource(format(source))}
               title="Format document (Alt+Shift+F)"
               className="rounded-md border border-slate-200 px-2 py-0.5 font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             >
@@ -138,6 +143,7 @@ export default function CppWorkspace(): JSX.Element {
           <CodeEditor
             value={source}
             onChange={setSource}
+            onFormat={format}
             theme={settings?.theme ?? 'light'}
             className="min-h-0 flex-1 overflow-hidden"
           />
