@@ -23,6 +23,9 @@ let win: BrowserWindow | null = null
 let currentBounds: ViewBounds = { x: 0, y: 0, width: 0, height: 0, visible: false }
 let authReloadTimer: ReturnType<typeof setTimeout> | null = null
 let lastAuthReloadAt = 0
+let authReloads = 0
+const MAX_AUTH_RELOADS = 3
+const seenAuthCookies = new Map<string, string>()
 let lastProblemId: number | null = null
 let pendingSubmission: unknown = null
 
@@ -189,8 +192,19 @@ export function handleCookieChanged(
   const likelyAuthCookie =
     cookie.httpOnly || /(?:session|sess|auth|login|user|token|php)/i.test(cookie.name)
   if (!likelyAuthCookie || !['explicit', 'overwrite'].includes(cause)) return
+
+  // pbinfo re-sends the same cookie on ordinary page loads, and tracking
+  // cookies refresh on a timer. Reloading for those turns one login into an
+  // endless reload → Cloudflare challenge → reload cycle, so only a cookie
+  // whose value actually changed counts as a login change.
+  const key = `${cookie.name}@${cookie.domain ?? ''}`
+  if (seenAuthCookies.get(key) === cookie.value) return
+  seenAuthCookies.set(key, cookie.value)
+
   if (!view || view.webContents.isDestroyed()) return
-  if (Date.now() - lastAuthReloadAt < 5000) return
+  // Picking up a fresh login needs one reload, not a standing behaviour.
+  if (authReloads >= MAX_AUTH_RELOADS) return
+  if (Date.now() - lastAuthReloadAt < 15000) return
   if (authReloadTimer) clearTimeout(authReloadTimer)
   authReloadTimer = setTimeout(() => {
     authReloadTimer = null
@@ -199,6 +213,7 @@ export function handleCookieChanged(
     // Never interrupt a challenge or a page that is still loading.
     if (wc.isLoading() || isChallengeUrl(wc.getURL())) return
     lastAuthReloadAt = Date.now()
+    authReloads++
     wc.reload()
   }, 700)
 }

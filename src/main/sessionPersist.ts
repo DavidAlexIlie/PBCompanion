@@ -29,6 +29,16 @@ interface StoredCookie {
   sameSite?: 'unspecified' | 'no_restriction' | 'lax' | 'strict'
 }
 
+/**
+ * Whether a stored cookie should come back as host-only. New entries record
+ * `hostOnly`; older ones don't, and a `.www.` domain in those is this app's
+ * own past widening — the server sets that cookie on the bare host.
+ */
+function hostOnlyOnRestore(c: StoredCookie): boolean {
+  if (c.hostOnly !== undefined) return c.hostOnly
+  return (c.domain ?? '').startsWith('.www.')
+}
+
 /** pbinfo's login cookie: httpOnly, on pbinfo.ro, not Cloudflare's. */
 function isPbinfoAuthCookie(c: { name: string; domain?: string; httpOnly?: boolean }): boolean {
   const domain = (c.domain ?? '').replace(/^\./, '').toLowerCase()
@@ -171,11 +181,10 @@ async function removeShadowCookies(ses: Electron.Session): Promise<void> {
     for (const c of cookies) {
       const domain = c.domain ?? ''
       if (!domain.startsWith('.')) continue
-      // `.www.host` is never something a server sets — it can only be a cookie
-      // an older build widened. Anything else is only a shadow while its
-      // host-only twin is present.
-      const isWidenedWww = domain.startsWith('.www.')
-      if (!isWidenedWww && !hostOnlyNames.has(`${c.name}@${domain.slice(1)}`)) continue
+      // Only an exact duplicate of a host-only cookie is a shadow. pbinfo does
+      // set real cookies on `.www.pbinfo.ro` (vizitator_track), so a leading
+      // dot alone is never grounds for deleting one.
+      if (!hostOnlyNames.has(`${c.name}@${domain.slice(1)}`)) continue
       try {
         await ses.cookies.remove(cookieUrl(c), c.name)
       } catch {
@@ -235,8 +244,10 @@ async function restore(ses: Electron.Session, dataDir: string): Promise<void> {
           // A host-only cookie MUST stay host-only. Passing `domain` turns it
           // into a `.host` cookie, so the browser then sends two cookies with
           // the same name and pbinfo reads the wrong one — which logged the
-          // user out on every launch.
-          domain: c.hostOnly ? undefined : c.domain,
+          // user out on every launch. Entries written before this field
+          // existed may already hold a widened `.www.` domain; restore those
+          // host-only too, or an old mirror keeps re-creating the duplicate.
+          domain: hostOnlyOnRestore(c) ? undefined : c.domain,
           path: c.path,
           secure: c.secure,
           httpOnly: c.httpOnly,
