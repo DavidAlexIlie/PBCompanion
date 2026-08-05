@@ -13,6 +13,7 @@ import { WebContentsView, BrowserWindow, session, ipcMain } from 'electron'
 import { join } from 'path'
 import type { ViewBounds, PbinfoNavState, SubmitSolutionResult } from '../shared/types'
 import { installAdblock } from './adblock'
+import { clientHintBrands, desktopUserAgent, isChallengeUrl, isCloudflareCookie } from './cookies'
 
 const PBINFO_HOME = 'https://www.pbinfo.ro/'
 export const PARTITION = 'persist:pbinfo' // persisted to disk under userData -> session survives restarts
@@ -49,6 +50,15 @@ export function createPbinfoView(parent: BrowserWindow, injectPreloadPath: strin
   win = parent
   installAdblock(PARTITION) // block ads/trackers in the embedded browser session
   const ses = session.fromPartition(PARTITION)
+  // Look like plain desktop Chrome. Cloudflare hands Electron's default user
+  // agent a managed challenge that this view can't clear, which leaves a fresh
+  // machine stuck on "Verificare eșuată".
+  ses.setUserAgent(desktopUserAgent())
+  ses.webRequest.onBeforeSendHeaders({ urls: ['*://*/*'] }, (details, cb) => {
+    const headers = { ...details.requestHeaders }
+    if (headers['sec-ch-ua']) headers['sec-ch-ua'] = clientHintBrands()
+    cb({ requestHeaders: headers })
+  })
 
   view = new WebContentsView({
     webPreferences: {
@@ -172,6 +182,10 @@ export function handleCookieChanged(
 ): void {
   const domain = (cookie.domain ?? '').replace(/^\./, '').toLowerCase()
   if (removed || !domain.endsWith('pbinfo.ro')) return
+  // Cloudflare's cookies are httpOnly too, and it rewrites them on every step
+  // of a verification challenge. Reloading then restarts the challenge, which
+  // is an endless "Verificare eșuată" loop on any machine that gets challenged.
+  if (isCloudflareCookie(cookie.name)) return
   const likelyAuthCookie =
     cookie.httpOnly || /(?:session|sess|auth|login|user|token|php)/i.test(cookie.name)
   if (!likelyAuthCookie || !['explicit', 'overwrite'].includes(cause)) return
@@ -182,6 +196,8 @@ export function handleCookieChanged(
     authReloadTimer = null
     const wc = view?.webContents
     if (!wc || wc.isDestroyed()) return
+    // Never interrupt a challenge or a page that is still loading.
+    if (wc.isLoading() || isChallengeUrl(wc.getURL())) return
     lastAuthReloadAt = Date.now()
     wc.reload()
   }, 700)

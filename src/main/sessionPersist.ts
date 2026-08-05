@@ -13,6 +13,7 @@
 import { session, safeStorage } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs'
+import { isCloudflareCookie } from './cookies'
 
 interface StoredCookie {
   url: string
@@ -88,17 +89,22 @@ function queueSave(ses: Electron.Session, dataDir: string): Promise<void> {
 async function save(ses: Electron.Session, dataDir: string): Promise<void> {
   try {
     const cookies = await ses.cookies.get({})
-    const stored: StoredCookie[] = cookies.map((c) => ({
-      url: cookieUrl(c),
-      name: c.name,
-      value: c.value,
-      domain: c.domain,
-      path: c.path,
-      secure: c.secure,
-      httpOnly: c.httpOnly,
-      expirationDate: c.expirationDate,
-      sameSite: c.sameSite
-    }))
+    // Cloudflare clearance is tied to this machine and IP. Carrying it to
+    // another PC (or a copied data folder) makes Cloudflare reject it and
+    // challenge every request instead.
+    const stored: StoredCookie[] = cookies
+      .filter((c) => !isCloudflareCookie(c.name))
+      .map((c) => ({
+        url: cookieUrl(c),
+        name: c.name,
+        value: c.value,
+        domain: c.domain,
+        path: c.path,
+        secure: c.secure,
+        httpOnly: c.httpOnly,
+        expirationDate: c.expirationDate,
+        sameSite: c.sameSite
+      }))
     const json = Buffer.from(JSON.stringify(stored), 'utf-8')
     const blob = safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(json.toString('utf-8')) : json
     mkdirSync(dataDir, { recursive: true })
@@ -128,6 +134,7 @@ async function restore(ses: Electron.Session, dataDir: string): Promise<void> {
     const stored = JSON.parse(jsonText) as StoredCookie[]
     const persistentSessionExpiry = Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60
     for (const c of stored) {
+      if (isCloudflareCookie(c.name)) continue // may come from an older mirror
       try {
         await ses.cookies.set({
           url: c.url,

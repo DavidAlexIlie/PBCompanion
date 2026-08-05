@@ -65,6 +65,16 @@ export default function App(): JSX.Element {
   const baseSidebar = useRef(0)
   const baseWebview = useRef(0)
 
+  // A width saved on a wider window (or while browsing full-width) must never
+  // squeeze the editor away when the workspace docks pbinfo beside it.
+  const [viewportW, setViewportW] = useState(window.innerWidth)
+  useEffect(() => {
+    const onResize = (): void => setViewportW(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const shownWebviewW = clamp(webviewW, 380, Math.max(380, viewportW - sidebarW - 520))
+
   const webviewSlot = useRef<HTMLDivElement>(null)
   const [overlayOpen, setOverlayOpen] = useState(false)
   useEffect(() => {
@@ -135,15 +145,19 @@ export default function App(): JSX.Element {
           )}
           {splitMode && (
             <Splitter
-              onStart={() => (baseWebview.current = webviewW)}
-              onResize={(dx) => setWebviewW(clamp(baseWebview.current - dx, 380, window.innerWidth - 520))}
+              onStart={() => (baseWebview.current = shownWebviewW)}
+              onResize={(dx) =>
+                setWebviewW(
+                  clamp(baseWebview.current - dx, 380, Math.max(380, viewportW - sidebarW - 520))
+                )
+              }
             />
           )}
           {/* Reserved slot for the embedded pbinfo browser. */}
           {webviewActive && (
             <div
               ref={webviewSlot}
-              style={webviewFull ? undefined : { width: webviewW }}
+              style={webviewFull ? undefined : { width: shownWebviewW }}
               className={
                 webviewFull ? 'min-w-0 flex-1 bg-white' : 'shrink-0 bg-white'
               }
