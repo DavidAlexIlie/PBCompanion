@@ -1,6 +1,6 @@
 {
   "name": "pbcompanion",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "PBCompanion — personal organization layer around pbinfo.ro (Windows desktop)",
   "main": "out/main/index.js",
   "author": "David",
@@ -17,10 +17,18 @@
     "better-sqlite3": "^11.8.1"
   },
   "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.8",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@electron/rebuild": "^3.7.1",
+    "@lezer/highlight": "^1.2.3",
     "@types/better-sqlite3": "^7.6.12",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -41,15 +49,24 @@
   "build": {
     "appId": "ro.pbinfo.pbcompanion",
     "productName": "PBCompanion",
-    "directories": { "output": "release" },
-    "files": ["out/**/*", "resources/icon.png", "resources/icon.ico"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "resources/icon.png",
+      "resources/icon.ico"
+    ],
     "extraResources": [
       {
         "from": "tools/mingw64/w64devkit",
         "to": "tools/w64devkit"
       }
     ],
-    "asarUnpack": ["**/*.node", "**/better-sqlite3/**"],
+    "asarUnpack": [
+      "**/*.node",
+      "**/better-sqlite3/**"
+    ],
     "win": {
       "target": "nsis",
       "icon": "resources/icon.ico"

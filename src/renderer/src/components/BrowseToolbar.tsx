@@ -13,8 +13,7 @@ import {
 } from './icons'
 
 export default function BrowseToolbar(): JSX.Element {
-  const { detected, problems, settings, webviewFull, setWebviewFull, refresh, openDetail } =
-    useStore()
+  const { detected, problems, settings, webviewFull, setWebviewFull, refresh } = useStore()
   const [nav, setNav] = useState<PbinfoNavState>({
     url: '',
     canGoBack: false,
@@ -32,11 +31,12 @@ export default function BrowseToolbar(): JSX.Element {
 
   const known = detected ? problems.find((p) => p.id === detected.id) : undefined
 
+  // Track the problem without interrupting: no detail panel pops open, the
+  // NEW pill just turns into the "tracked" badge.
   const registerNew = async (): Promise<void> => {
     if (!detected) return
-    const p = await window.api.registerProblem(detected)
+    await window.api.registerProblem(detected)
     await refresh()
-    openDetail(p.id)
   }
 
   return (

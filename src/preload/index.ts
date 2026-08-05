@@ -117,6 +117,12 @@ const api = {
     const h = (): void => cb()
     ipcRenderer.on('data:changed', h)
     return () => ipcRenderer.removeListener('data:changed', h)
+  },
+  // Fires in every window (including pop-out panels) whenever settings change.
+  onSettingsChanged: (cb: (s: AppSettings) => void): (() => void) => {
+    const h = (_: unknown, s: AppSettings): void => cb(s)
+    ipcRenderer.on('settings:changed', h)
+    return () => ipcRenderer.removeListener('settings:changed', h)
   }
 }
 

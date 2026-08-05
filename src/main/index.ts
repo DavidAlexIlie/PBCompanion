@@ -13,7 +13,9 @@ import type {
   UserStatus,
   DetectedProblem,
   DetectedVerdict,
-  ProblemIoFiles
+  ProblemIoFiles,
+  AppSettings,
+  ThemeName
 } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -22,13 +24,29 @@ function notifyDataChanged(): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('data:changed')
 }
 
+/** Paint the native window frame in the theme colour so startup doesn't flash. */
+export function shellBackground(theme: ThemeName): string {
+  return theme === 'dark' ? '#212529' : '#f8fafc'
+}
+
+export function panelBackground(theme: ThemeName): string {
+  return theme === 'dark' ? '#343a40' : '#ffffff'
+}
+
+/** Settings changes reach every window (main + pop-out panels). */
+function notifySettingsChanged(next: AppSettings): void {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('settings:changed', next)
+  }
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 920,
     minWidth: 1280,
     minHeight: 760,
-    backgroundColor: '#f8fafc',
+    backgroundColor: shellBackground(settings.getSettings().theme),
     title: 'PBCompanion',
     icon: join(__dirname, '../../resources/icon.png'),
     autoHideMenuBar: true,
@@ -124,7 +142,10 @@ function registerIpc(): void {
       db.saveProblemWhiteboard(id, whiteboard)
   )
   ipcMain.handle('panel:open', (_e, { type, id }: { type: 'notes' | 'whiteboard'; id: number }) => {
-    if (mainWindow) openPanel(mainWindow, type, id, join(__dirname, '../preload/index.js'))
+    if (mainWindow)
+      openPanel(mainWindow, type, id, join(__dirname, '../preload/index.js'), {
+        backgroundColor: panelBackground(settings.getSettings().theme)
+      })
   })
   ipcMain.handle('panel:closeForProblem', (_e, id: number) => closeProblemPanels(id))
 
@@ -200,6 +221,13 @@ function registerIpc(): void {
   ipcMain.handle('settings:set', (_e, patch) => {
     const out = settings.setSettings(patch)
     if (patch.keepOnlyBest === true) db.keepOnlyBestAttempts()
+    if (patch.theme !== undefined) {
+      mainWindow?.setBackgroundColor(shellBackground(out.theme))
+      for (const w of BrowserWindow.getAllWindows()) {
+        if (w !== mainWindow && !w.isDestroyed()) w.setBackgroundColor(panelBackground(out.theme))
+      }
+    }
+    notifySettingsChanged(out)
     notifyDataChanged()
     return out
   })

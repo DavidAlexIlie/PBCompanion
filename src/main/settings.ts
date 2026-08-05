@@ -8,7 +8,7 @@
 import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import type { AppSettings } from '../shared/types'
+import type { AppSettings, ThemeName } from '../shared/types'
 import { getSetting, setSetting } from './db'
 
 interface BootConfig {
@@ -43,7 +43,8 @@ const DEFAULTS = {
   keepOnlyBest: false,
   autoMoveOnHundred: true,
   bandPartialMin: 1,
-  bandCompleted: 100
+  bandCompleted: 100,
+  theme: 'light' as ThemeName
 }
 
 export function getSettings(): AppSettings {
@@ -60,6 +61,7 @@ export function getSettings(): AppSettings {
     autoMoveOnHundred: bool('autoMoveOnHundred', DEFAULTS.autoMoveOnHundred),
     bandPartialMin: num('bandPartialMin', DEFAULTS.bandPartialMin),
     bandCompleted: num('bandCompleted', DEFAULTS.bandCompleted),
+    theme: getSetting('theme') === 'dark' ? 'dark' : DEFAULTS.theme,
     dataDir: readBootConfig().dataDir
   }
 }
@@ -70,5 +72,6 @@ export function setSettings(patch: Partial<AppSettings>): AppSettings {
     setSetting('autoMoveOnHundred', String(patch.autoMoveOnHundred))
   if (patch.bandPartialMin !== undefined) setSetting('bandPartialMin', String(patch.bandPartialMin))
   if (patch.bandCompleted !== undefined) setSetting('bandCompleted', String(patch.bandCompleted))
+  if (patch.theme !== undefined) setSetting('theme', patch.theme)
   return getSettings()
 }

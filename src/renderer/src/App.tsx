@@ -9,6 +9,7 @@ import SettingsView from './components/SettingsView'
 import CppWorkspace from './components/CppWorkspace'
 import ProblemDetail from './components/ProblemDetail'
 import Splitter, { usePersistentNumber, clamp } from './components/Splitter'
+import { useThemeSync } from './lib/theme'
 
 /**
  * Keeps the main-process WebContentsView aligned with the on-screen region
@@ -52,10 +53,12 @@ export default function App(): JSX.Element {
     webviewFull,
     detailProblemId,
     resizing,
+    settings,
     setDetected,
     refresh,
     refreshSettings
   } = useStore()
+  useThemeSync(settings?.theme)
 
   const [sidebarW, setSidebarW] = usePersistentNumber('layout.sidebar', 228)
   const [webviewW, setWebviewW] = usePersistentNumber('layout.webview', 720)
@@ -71,10 +74,13 @@ export default function App(): JSX.Element {
     observer.observe(document.body, { childList: true, subtree: true })
     return () => observer.disconnect()
   }, [])
+  // The C++ workspace always docks pbinfo on its right: the statement, the
+  // submissions and the rest of the site are the real thing, not a cached copy.
+  const webviewActive = showWebview || route === 'workspace'
   // The embedded browser hides while a modal/detail panel is open (so the panel
   // isn't occluded) and while resizing (so a splitter under it still gets
   // pointer events).
-  const webviewVisible = showWebview && detailProblemId === null && !resizing && !overlayOpen
+  const webviewVisible = webviewActive && detailProblemId === null && !resizing && !overlayOpen
   useWebviewBounds(webviewSlot, webviewVisible)
 
   useEffect(() => {
@@ -109,7 +115,7 @@ export default function App(): JSX.Element {
     }
   }
 
-  const splitMode = showWebview && !webviewFull
+  const splitMode = webviewActive && !webviewFull
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-50 text-slate-900">
@@ -121,10 +127,10 @@ export default function App(): JSX.Element {
         onResize={(dx) => setSidebarW(clamp(baseSidebar.current + dx, 180, 420))}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        {showWebview && <BrowseToolbar />}
+        {webviewActive && <BrowseToolbar />}
         <div className="relative flex min-h-0 flex-1">
           {/* Route content. Hidden under the webview when popped to full. */}
-          {!(showWebview && webviewFull) && (
+          {!(webviewActive && webviewFull) && (
             <div className="min-w-0 flex-1 overflow-hidden">{routeView()}</div>
           )}
           {splitMode && (
@@ -134,7 +140,7 @@ export default function App(): JSX.Element {
             />
           )}
           {/* Reserved slot for the embedded pbinfo browser. */}
-          {showWebview && (
+          {webviewActive && (
             <div
               ref={webviewSlot}
               style={webviewFull ? undefined : { width: webviewW }}

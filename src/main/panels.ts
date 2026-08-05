@@ -29,7 +29,8 @@ export function openPanel(
   parent: BrowserWindow,
   type: PanelType,
   id: number,
-  preload: string
+  preload: string,
+  opts: { backgroundColor: string }
 ): void {
   const k = key(type, id)
   const existing = panels.get(k)
@@ -58,7 +59,7 @@ export function openPanel(
     minHeight: 300,
     frame: false,
     resizable: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: opts.backgroundColor,
     title: type === 'notes' ? 'Notes' : 'Whiteboard',
     webPreferences: {
       preload,

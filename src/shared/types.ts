@@ -40,11 +40,14 @@ export interface GroupWithMembers extends Group {
   problemIds: number[]
 }
 
+export type ThemeName = 'light' | 'dark'
+
 export interface AppSettings {
   keepOnlyBest: boolean
   autoMoveOnHundred: boolean
   bandPartialMin: number // score >= this and < 100 => partial (amber). default 1
   bandCompleted: number // score >= this => completed (blue). default 100
+  theme: ThemeName
   dataDir: string
 }
 

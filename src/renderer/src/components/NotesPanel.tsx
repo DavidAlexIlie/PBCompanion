@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import PanelChrome from './PanelChrome'
+import { useThemeSync } from '../lib/theme'
 
 /**
  * A plain notes panel for a problem. Native textarea undo (Ctrl+Z) covers many
  * changes out of the box. Autosaves every second and flushes on close.
  */
 export default function NotesPanel({ problemId }: { problemId: number }): JSX.Element {
+  useThemeSync()
   const [text, setText] = useState('')
   const [loaded, setLoaded] = useState(false)
   const dirty = useRef(false)

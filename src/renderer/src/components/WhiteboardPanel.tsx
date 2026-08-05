@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import PanelChrome from './PanelChrome'
 import { IconTrash } from './icons'
+import { useThemeSync } from '../lib/theme'
 
 interface Point {
   x: number
@@ -26,6 +27,7 @@ const SIZES = [2, 4, 8, 14]
  * - Autosaves every second, on each finished stroke, and on close.
  */
 export default function WhiteboardPanel({ problemId }: { problemId: number }): JSX.Element {
+  useThemeSync()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const strokes = useRef<Stroke[]>([])
@@ -252,7 +254,9 @@ export default function WhiteboardPanel({ problemId }: { problemId: number }): J
 
   return (
     <PanelChrome title={`Whiteboard · #${problemId}`} toolbar={toolbar}>
-      <div ref={wrapRef} className="relative h-full w-full bg-white">
+      {/* The canvas stays white in both themes — strokes are saved with their
+          own (dark) ink colour, so a dark canvas would hide existing drawings. */}
+      <div ref={wrapRef} className="relative h-full w-full bg-pure-white">
         <canvas
           ref={canvasRef}
           onPointerDown={onDown}

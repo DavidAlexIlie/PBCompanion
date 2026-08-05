@@ -2,8 +2,207 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Theme palette. Tailwind resolves every colour through these variables
+ * (see tailwind.config.js), so the dark theme is a single class flip on
+ * <html> — no `dark:` variants in the components.
+ *
+ * The dark ramp is an inversion of the light one: a higher shade number is
+ * still "further from the page background", so pairs like
+ * `bg-slate-900 text-slate-100` or `bg-brand-600 text-white` stay legible.
+ */
 :root {
   color-scheme: light;
+
+  --c-white: 255 255 255;
+
+  --c-slate-50: 248 250 252;
+  --c-slate-100: 241 245 249;
+  --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;
+  --c-slate-700: 51 65 85;
+  --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42;
+  --c-slate-950: 2 6 23;
+
+  --c-brand-50: 239 246 255;
+  --c-brand-100: 219 234 254;
+  --c-brand-200: 191 219 254;
+  --c-brand-300: 147 197 253;
+  --c-brand-400: 96 165 250;
+  --c-brand-500: 59 130 246;
+  --c-brand-600: 37 99 235;
+  --c-brand-700: 29 78 216;
+  --c-brand-800: 30 64 175;
+  --c-brand-900: 30 58 138;
+
+  --c-amber-50: 255 251 235;
+  --c-amber-100: 254 243 199;
+  --c-amber-200: 253 230 138;
+  --c-amber-300: 252 211 77;
+  --c-amber-400: 251 191 36;
+  --c-amber-500: 245 158 11;
+  --c-amber-600: 217 119 6;
+  --c-amber-700: 180 83 9;
+  --c-amber-800: 146 64 14;
+  --c-amber-900: 120 53 15;
+  --c-amber-950: 69 26 3;
+
+  --c-rose-50: 255 241 242;
+  --c-rose-100: 255 228 230;
+  --c-rose-200: 254 205 211;
+  --c-rose-300: 253 164 175;
+  --c-rose-400: 251 113 133;
+  --c-rose-500: 244 63 94;
+  --c-rose-600: 225 29 72;
+  --c-rose-700: 190 18 60;
+  --c-rose-800: 159 18 57;
+  --c-rose-900: 136 19 55;
+  --c-rose-950: 76 5 25;
+
+  --c-sky-50: 240 249 255;
+  --c-sky-100: 224 242 254;
+  --c-sky-200: 186 230 253;
+  --c-sky-300: 125 211 252;
+  --c-sky-400: 56 189 248;
+  --c-sky-500: 14 165 233;
+  --c-sky-600: 2 132 199;
+  --c-sky-700: 3 105 161;
+  --c-sky-800: 7 89 133;
+  --c-sky-900: 12 74 110;
+  --c-sky-950: 8 47 73;
+
+  --c-emerald-50: 236 253 245;
+  --c-emerald-100: 209 250 229;
+  --c-emerald-200: 167 243 208;
+  --c-emerald-300: 110 231 183;
+  --c-emerald-400: 52 211 153;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 5 150 105;
+  --c-emerald-700: 4 120 87;
+  --c-emerald-800: 6 95 70;
+  --c-emerald-900: 6 78 59;
+  --c-emerald-950: 2 44 34;
+
+  --c-shadow: 15 23 42;
+  --c-shadow-brand: 37 99 235;
+
+  --c-scrollbar: 203 213 225;
+  --c-scrollbar-hover: 148 163 184;
+  --c-code-bg: 241 245 249;
+  --c-code-border: 226 232 240;
+
+  /* C++ editor syntax colours (CodeEditor.tsx). */
+  --syn-keyword: #0b5fd0;
+  --syn-control: #af00db;
+  --syn-type: #0f766e;
+  --syn-string: #a31515;
+  --syn-number: #0f7b3f;
+  --syn-comment: #4b8b3b;
+  --syn-function: #7a5c12;
+  --syn-variable: #1e293b;
+  --syn-preproc: #7c3aed;
+  --syn-operator: #475569;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  /* Surfaces: #212529 body, #343a40 cards, #2b3035 subtle. */
+  --c-white: 52 58 64;
+
+  --c-slate-50: 33 37 41;
+  --c-slate-100: 43 48 53;
+  --c-slate-200: 63 70 78;
+  --c-slate-300: 86 94 102;
+  --c-slate-400: 154 163 171;
+  --c-slate-500: 173 181 189;
+  --c-slate-600: 195 201 206;
+  --c-slate-700: 222 226 230;
+  --c-slate-800: 233 236 239;
+  --c-slate-900: 248 249 250;
+  --c-slate-950: 255 255 255;
+
+  --c-brand-50: 44 53 64;
+  --c-brand-100: 51 64 79;
+  --c-brand-200: 61 79 102;
+  --c-brand-300: 63 107 176;
+  --c-brand-400: 96 165 250;
+  --c-brand-500: 96 165 250;
+  --c-brand-600: 124 179 253;
+  --c-brand-700: 169 205 255;
+  --c-brand-800: 207 226 255;
+  --c-brand-900: 230 240 255;
+
+  --c-amber-50: 58 36 8;
+  --c-amber-100: 77 50 16;
+  --c-amber-200: 107 69 20;
+  --c-amber-300: 138 90 26;
+  --c-amber-400: 217 119 6;
+  --c-amber-500: 245 158 11;
+  --c-amber-600: 251 191 36;
+  --c-amber-700: 252 211 77;
+  --c-amber-800: 253 230 138;
+  --c-amber-900: 254 243 199;
+  --c-amber-950: 255 251 235;
+
+  --c-rose-50: 63 13 26;
+  --c-rose-100: 82 16 31;
+  --c-rose-200: 109 20 40;
+  --c-rose-300: 159 27 57;
+  --c-rose-400: 225 29 72;
+  --c-rose-500: 244 63 94;
+  --c-rose-600: 251 113 133;
+  --c-rose-700: 253 164 175;
+  --c-rose-800: 254 205 211;
+  --c-rose-900: 255 228 230;
+  --c-rose-950: 255 241 242;
+
+  --c-sky-50: 11 42 68;
+  --c-sky-100: 15 58 92;
+  --c-sky-200: 7 89 133;
+  --c-sky-300: 3 105 161;
+  --c-sky-400: 14 165 233;
+  --c-sky-500: 56 189 248;
+  --c-sky-600: 125 211 252;
+  --c-sky-700: 125 211 252;
+  --c-sky-800: 186 230 253;
+  --c-sky-900: 224 242 254;
+  --c-sky-950: 240 249 255;
+
+  --c-emerald-50: 6 40 30;
+  --c-emerald-100: 6 56 42;
+  --c-emerald-200: 6 78 59;
+  --c-emerald-300: 4 120 87;
+  --c-emerald-400: 16 185 129;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 52 211 153;
+  --c-emerald-700: 110 231 183;
+  --c-emerald-800: 167 243 208;
+  --c-emerald-900: 209 250 229;
+  --c-emerald-950: 236 253 245;
+
+  --c-shadow: 0 0 0;
+  --c-shadow-brand: 0 0 0;
+
+  --c-scrollbar: 73 80 87;
+  --c-scrollbar-hover: 108 117 125;
+  --c-code-bg: 43 48 53;
+  --c-code-border: 63 70 78;
+
+  --syn-keyword: #569cd6;
+  --syn-control: #c586c0;
+  --syn-type: #4ec9b0;
+  --syn-string: #ce9178;
+  --syn-number: #b5cea8;
+  --syn-comment: #6a9955;
+  --syn-function: #dcdcaa;
+  --syn-variable: #9cdcfe;
+  --syn-preproc: #c586c0;
+  --syn-operator: #d4d4d4;
 }
 
 html,
@@ -14,8 +213,8 @@ body,
 }
 
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: rgb(var(--c-slate-50));
+  color: rgb(var(--c-slate-900));
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -26,13 +225,13 @@ body {
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgb(var(--c-scrollbar));
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgb(var(--c-scrollbar-hover));
   background-clip: content-box;
 }
 
@@ -52,7 +251,7 @@ body {
 .statement-html pre,
 .statement-html code {
   font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-  background: #f1f5f9;
+  background: rgb(var(--c-code-bg));
   border-radius: 6px;
 }
 .statement-html pre {
@@ -65,7 +264,7 @@ body {
 }
 .statement-html td,
 .statement-html th {
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgb(var(--c-code-border));
   padding: 4px 10px;
 }
 .statement-html img {

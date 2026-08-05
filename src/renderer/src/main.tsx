@@ -3,7 +3,11 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import NotesPanel from './components/NotesPanel'
 import WhiteboardPanel from './components/WhiteboardPanel'
+import { applyTheme, cachedTheme } from './lib/theme'
 import './index.css'
+
+// Paint the right theme on the first frame; settings confirm it right after.
+applyTheme(cachedTheme())
 
 // Pop-out windows load the same bundle with a hash route:
 //   #/panel/notes/<id>  or  #/panel/whiteboard/<id>

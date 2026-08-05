@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import { IconReload } from './icons'
-import type { AppSettings } from '../../../shared/types'
+import { applyTheme } from '../lib/theme'
+import type { AppSettings, ThemeName } from '../../../shared/types'
 
 export default function SettingsView(): JSX.Element {
   const { settings, refreshSettings, refresh } = useStore()
@@ -20,6 +21,33 @@ export default function SettingsView(): JSX.Element {
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="mt-1 text-slate-500">Local-first. Everything lives on your machine.</p>
+
+        <Section title="Appearance">
+          <Row
+            label="Theme"
+            desc="Dark mode applies to the whole app, including the C++ workspace and pop-out panels."
+            action={
+              <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+                {(['light', 'dark'] as ThemeName[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      applyTheme(t) // instant feedback; the DB write follows
+                      update({ theme: t })
+                    }}
+                    className={`rounded-md px-3 py-1.5 text-sm font-semibold capitalize transition ${
+                      settings.theme === t
+                        ? 'bg-white text-brand-700 shadow-soft'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            }
+          />
+        </Section>
 
         <Section title="Submissions">
           <Toggle
