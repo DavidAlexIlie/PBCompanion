@@ -32,7 +32,7 @@ export default function BrowseToolbar(): JSX.Element {
   const known = detected ? problems.find((p) => p.id === detected.id) : undefined
 
   // Track the problem without interrupting: no detail panel pops open, the
-  // NEW pill just turns into the "tracked" badge.
+  // Start pill just turns into the "tracked" badge.
   const registerNew = async (): Promise<void> => {
     if (!detected) return
     await window.api.registerProblem(detected)
@@ -86,7 +86,7 @@ export default function BrowseToolbar(): JSX.Element {
               onClick={registerNew}
               className="flex animate-pop-in items-center gap-1 rounded-full bg-brand-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-soft hover:bg-brand-700"
             >
-              <IconPlus className="h-3.5 w-3.5" /> New
+              <IconPlus className="h-3.5 w-3.5" /> Start
             </button>
           )}
         </div>

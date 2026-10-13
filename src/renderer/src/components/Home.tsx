@@ -63,7 +63,7 @@ export default function Home(): JSX.Element {
           {recent.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-slate-400">
               Nothing yet. Hit <span className="font-semibold text-brand-600">Browse pbinfo</span>,
-              open a problem, and press <span className="font-semibold">NEW</span>.
+              open a problem, and press <span className="font-semibold">Start</span>.
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">

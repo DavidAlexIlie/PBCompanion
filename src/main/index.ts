@@ -67,7 +67,7 @@ function createWindow(): void {
   pb.wireInjectBridge(mainWindow, {
     onProblemDetected: (payload) => {
       // Refresh cached metadata for problems we already know (keeps title/
-      // statement fresh). New problems are only created via the NEW button.
+      // statement fresh). New problems are only created via the Start buttons.
       const p = payload as DetectedProblem
       pb.rememberLastProblem(p.id)
       if (db.getProblem(p.id)) {
