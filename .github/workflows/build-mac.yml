@@ -26,10 +26,21 @@ jobs:
       - name: Build renderer/main/preload
         run: npm run build
 
-      - name: Package macOS app (unsigned)
-        run: npx electron-builder --mac --publish never
+      # Native modules must match each target arch. npmRebuild is off, so we
+      # rebuild better-sqlite3 for the exact arch right before packaging it.
+      - name: Package macOS (arm64)
+        run: |
+          npx electron-rebuild --arch arm64 -f -w better-sqlite3
+          npx electron-builder --mac --arm64 --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false' # do not try to sign
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Package macOS (x64)
+        run: |
+          npx electron-rebuild --arch x64 -f -w better-sqlite3
+          npx electron-builder --mac --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

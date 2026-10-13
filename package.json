@@ -54,6 +54,7 @@
       "output": "release"
     },
     "afterPack": "build/afterPack.cjs",
+    "npmRebuild": false,
     "files": [
       "out/**/*",
       "resources/icon.png",
