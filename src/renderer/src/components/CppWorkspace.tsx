@@ -6,8 +6,7 @@ import type {
   DetectedVerdict,
   PbinfoNavState,
   Problem,
-  ProblemIoFiles,
-  UserStatus
+  ProblemIoFiles
 } from '../../../shared/types'
 import { detectProblemIoFiles } from '../../../shared/problemIo'
 import { formatCpp } from '../../../shared/cppFormat'
@@ -355,18 +354,16 @@ function Picker(props: {
   const list = useMemo(
     () =>
       props.problems
+        // Only In Progress problems belong here — Completed/DNF are done, you
+        // don't pick them to work on. Open them in pbinfo if you need them.
+        .filter((p) => settings && displayStatus(p, settings) === 'in_progress')
         .filter(
           (p) =>
             !q ||
             String(p.id).startsWith(q) ||
             cleanProblemName(p.title, p.id, p.slug).toLowerCase().includes(q)
         )
-        .sort((a, b) => {
-          // In-progress work first, then most recently touched.
-          const rank = (p: Problem): number =>
-            settings && displayStatus(p, settings) === 'in_progress' ? 0 : 1
-          return rank(a) - rank(b) || b.updated_at.localeCompare(a.updated_at)
-        }),
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [props.problems, q, settings]
   )
 
@@ -399,7 +396,7 @@ function Picker(props: {
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white">
           {list.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-slate-400">
-              {props.problems.length === 0 ? 'No problems yet.' : 'No problem matches.'}
+              {q ? 'No in-progress problem matches.' : 'No in-progress problems.'}
             </div>
           ) : (
             list.map((p) => (
@@ -415,18 +412,13 @@ function Picker(props: {
                   {cleanProblemName(p.title, p.id, p.slug)}
                 </span>
                 {settings && (
-                  <>
-                    <span className="shrink-0 text-xs text-slate-400">
-                      {STATUS_LABEL[displayStatus(p, settings)]}
-                    </span>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        bandTag[scoreBand(p.detected_score, settings)]
-                      }`}
-                    >
-                      {p.detected_score === null ? '—' : `${p.detected_score} pts`}
-                    </span>
-                  </>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      bandTag[scoreBand(p.detected_score, settings)]
+                    }`}
+                  >
+                    {p.detected_score === null ? 'no score' : `${p.detected_score} pts`}
+                  </span>
                 )}
               </button>
             ))
@@ -435,12 +427,6 @@ function Picker(props: {
       </div>
     </div>
   )
-}
-
-const STATUS_LABEL: Record<UserStatus, string> = {
-  in_progress: 'In progress',
-  completed: 'Completed',
-  dnf: 'DNF'
 }
 
 function useNavState(): PbinfoNavState {
