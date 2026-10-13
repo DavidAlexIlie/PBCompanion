@@ -9,6 +9,8 @@ import type {
   ProblemIoFiles
 } from '../../../shared/types'
 import { detectProblemIoFiles } from '../../../shared/problemIo'
+import { detectProblemType, extractSubprogramName, extractClassName } from '../../../shared/problemType'
+import { subprogramStarter, classStarter, prepareSubmission } from '../../../shared/cppSubmit'
 import { formatCpp } from '../../../shared/cppFormat'
 import { convertToFileIo } from '../../../shared/cppFileIo'
 import { starterFor, isStarterTemplate } from '../../../shared/cppStarter'
@@ -30,10 +32,11 @@ export default function CppWorkspace(): JSX.Element {
   const activeId = detected?.id ?? null
   const problem = activeId === null ? null : (problems.find((p) => p.id === activeId) ?? null)
   const name = detected ? cleanProblemName(detected.title, detected.id, detected.slug) : ''
-  const ioFiles = useMemo(
-    () => detectProblemIoFiles(detected?.statementHtml ?? problem?.statement_html ?? null),
-    [detected, problem?.statement_html]
-  )
+  const statementHtml = detected?.statementHtml ?? problem?.statement_html ?? null
+  const ioFiles = useMemo(() => detectProblemIoFiles(statementHtml), [statementHtml])
+  const problemType = useMemo(() => detectProblemType(statementHtml, ioFiles), [statementHtml, ioFiles])
+  const subName = useMemo(() => extractSubprogramName(statementHtml), [statementHtml])
+  const className = useMemo(() => extractClassName(statementHtml), [statementHtml])
   const browserOnProblem = activeId !== null && nav.url.includes(`/probleme/${activeId}`)
 
   const continueList = useMemo(
@@ -81,7 +84,13 @@ export default function CppWorkspace(): JSX.Element {
                 </button>
               )}
             </div>
-            <p className="mt-0.5 text-xs text-slate-500">{ioLabel(ioFiles)}</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {problemType === 'subprogram'
+                ? `doar subprogramul${subName ? ` ${subName}()` : ''} · se trimite fără main`
+                : problemType === 'class'
+                  ? `doar clasa${className ? ` ${className}` : ''} · se trimite fără main`
+                  : ioLabel(ioFiles)}
+            </p>
           </div>
         ) : (
           <div>
@@ -126,7 +135,15 @@ export default function CppWorkspace(): JSX.Element {
           continueList={continueList}
         />
       ) : (
-        <Editor key={problem.id} problem={problem} ioFiles={ioFiles} browserOnProblem={browserOnProblem} />
+        <Editor
+          key={problem.id}
+          problem={problem}
+          ioFiles={ioFiles}
+          problemType={problemType}
+          subName={subName}
+          className={className}
+          browserOnProblem={browserOnProblem}
+        />
       )}
     </div>
   )
@@ -135,14 +152,23 @@ export default function CppWorkspace(): JSX.Element {
 function Editor(props: {
   problem: Problem
   ioFiles: ProblemIoFiles
+  problemType: ReturnType<typeof detectProblemType>
+  subName: string | null
+  className: string | null
   browserOnProblem: boolean
 }): JSX.Element {
-  const { problem, ioFiles, browserOnProblem } = props
-  const { settings, workspaceLoad, setWorkspaceLoad } = useStore()
+  const { problem, ioFiles, problemType, subName, className, browserOnProblem } = props
+  const { settings, workspaceLoad, setWorkspaceLoad, tourCode } = useStore()
+  const starter =
+    problemType === 'subprogram'
+      ? subprogramStarter(subName)
+      : problemType === 'class'
+        ? classStarter(className)
+        : starterFor(ioFiles)
   // Keyed by problem id in the parent, so this state never carries one
   // problem's code into another's draft.
   const [source, setSource] = useState(
-    () => localStorage.getItem(draftKey(problem.id)) ?? starterFor(ioFiles)
+    () => localStorage.getItem(draftKey(problem.id)) ?? starter
   )
   const [input, setInput] = useState('')
   const [result, setResult] = useState<CompileRunResult | null>(null)
@@ -150,6 +176,11 @@ function Editor(props: {
   const [submitStatus, setSubmitStatus] = useState('')
   // The draft a loaded saved solution replaced, offered back once.
   const [replacedDraft, setReplacedDraft] = useState<string | null>(null)
+
+  // The onboarding tour types code straight into the editor.
+  useEffect(() => {
+    if (tourCode !== null) setSource(tourCode)
+  }, [tourCode])
 
   useEffect(() => {
     if (workspaceLoad?.problemId !== problem.id) return
@@ -187,8 +218,12 @@ function Editor(props: {
   const submit = async (): Promise<void> => {
     if (!source.trim()) return
     setBusy('submit')
-    setSubmitStatus('Submitting...')
-    const response = await window.api.submitSolution(problem.id, source)
+    // Function-only / class problems: send just the required code (strip the
+    // local test region + any main), so pbinfo doesn't reject a second main.
+    const stripMain = problemType === 'subprogram' || problemType === 'class'
+    const toSend = prepareSubmission(source, stripMain)
+    setSubmitStatus(stripMain ? 'Se trimite fără main...' : 'Submitting...')
+    const response = await window.api.submitSolution(problem.id, toSend)
     setSubmitStatus(
       response.ok ? 'Submitted · waiting for evaluation...' : (response.message ?? 'Submission failed')
     )
@@ -219,25 +254,27 @@ function Editor(props: {
             </button>
           )}
           <span className="ml-auto truncate text-brand-700">{submitStatus}</span>
-          <button
-            onClick={run}
-            disabled={busy !== null}
-            className="rounded-lg border border-brand-200 bg-white px-4 py-1.5 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
-          >
-            {busy === 'run' ? 'Running...' : 'Run locally'}
-          </button>
-          <button
-            onClick={submit}
-            disabled={busy !== null || !browserOnProblem}
-            title={
-              browserOnProblem
-                ? `Submit to pbinfo #${problem.id}`
-                : `Open #${problem.id} in the pbinfo browser to submit`
-            }
-            className="rounded-lg bg-brand-600 px-5 py-1.5 text-sm font-bold text-white shadow-soft hover:bg-brand-700 disabled:opacity-50"
-          >
-            {busy === 'submit' ? 'Submitting...' : 'Submit'}
-          </button>
+          <span data-tour="ws-actions" className="flex items-center gap-3">
+            <button
+              onClick={run}
+              disabled={busy !== null}
+              className="rounded-lg border border-brand-200 bg-white px-4 py-1.5 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
+            >
+              {busy === 'run' ? 'Running...' : 'Run locally'}
+            </button>
+            <button
+              onClick={submit}
+              disabled={busy !== null || !browserOnProblem}
+              title={
+                browserOnProblem
+                  ? `Submit to pbinfo #${problem.id}`
+                  : `Open #${problem.id} in the pbinfo browser to submit`
+              }
+              className="rounded-lg bg-brand-600 px-5 py-1.5 text-sm font-bold text-white shadow-soft hover:bg-brand-700 disabled:opacity-50"
+            >
+              {busy === 'submit' ? 'Submitting...' : 'Submit'}
+            </button>
+          </span>
         </div>
         {replacedDraft !== null && (
           <div className="flex items-center gap-3 border-b border-brand-100 bg-brand-50 px-4 py-2 text-xs text-brand-800">
@@ -261,12 +298,14 @@ function Editor(props: {
             </button>
           </div>
         )}
-        <CodeEditor
-          value={source}
-          onChange={setSource}
-          theme={settings?.theme ?? 'light'}
-          className="min-h-0 flex-1 overflow-hidden"
-        />
+        <div data-tour="ws-editor" className="flex min-h-0 flex-1 overflow-hidden">
+          <CodeEditor
+            value={source}
+            onChange={setSource}
+            theme={settings?.theme ?? 'light'}
+            className="min-h-0 flex-1 overflow-hidden"
+          />
+        </div>
         <div className="grid h-52 grid-cols-2 border-t border-slate-200">
           <label className="flex min-w-0 flex-col border-r border-slate-200">
             <span className="px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-400">
