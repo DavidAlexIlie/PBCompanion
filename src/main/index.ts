@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import { join } from 'path'
 import { writeFileSync, readFileSync, existsSync } from 'fs'
+import { execFile } from 'child_process'
 import * as db from './db'
 import * as settings from './settings'
 import * as pb from './pbinfoView'
@@ -394,6 +395,18 @@ function registerIpc(): void {
   })
   ipcMain.handle('app:openDataDir', () => {
     shell.openPath(settings.getSettings().dataDir)
+  })
+  // macOS: trigger Apple's GUI installer for the Command Line Tools (which
+  // provide clang++ + the SDK). The C++ compiler can't be bundled on macOS —
+  // the SDK isn't redistributable — so this is the sanctioned one-click path.
+  ipcMain.handle('app:installCompiler', () => {
+    if (process.platform !== 'darwin') return { ok: false, message: 'Only needed on macOS.' }
+    try {
+      execFile('xcode-select', ['--install'], { windowsHide: true }, () => {})
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : 'Could not start the installer.' }
+    }
   })
   ipcMain.handle('app:chooseDataDir', async () => {
     if (!mainWindow) return null

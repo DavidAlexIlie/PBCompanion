@@ -74,6 +74,9 @@ const api = {
   resetSession: (): Promise<void> => ipcRenderer.invoke('app:resetSession'),
   clearLocalData: (): Promise<void> => ipcRenderer.invoke('app:clearLocalData'),
   devReset: (): Promise<void> => ipcRenderer.invoke('app:devReset'),
+  platform: process.platform,
+  installCompiler: (): Promise<{ ok: boolean; message?: string }> =>
+    ipcRenderer.invoke('app:installCompiler'),
   tutorialStart: (): Promise<void> => ipcRenderer.invoke('tutorial:start'),
   tutorialEnd: (): Promise<void> => ipcRenderer.invoke('tutorial:end'),
   saveDragRecording: (json: string): Promise<void> =>

@@ -324,13 +324,28 @@ function Editor(props: {
                 ? 'Compiler'
                 : `Output · ${result?.outputFile ?? ioFiles.outputFile ?? 'stdout'}`}
             </span>
-            <pre
-              className={`min-h-0 flex-1 overflow-auto whitespace-pre-wrap p-3 font-mono text-xs ${result?.ok ? 'text-slate-700' : 'text-rose-700'}`}
-            >
-              {result
-                ? [result.stdout, result.stderr].filter(Boolean).join('\n') || '(no output)'
-                : 'Run the code to see output.'}
-            </pre>
+            {result?.phase === 'compiler_missing' && window.api.platform === 'darwin' ? (
+              <div className="flex min-h-0 flex-1 flex-col items-start gap-2 overflow-auto p-3 text-xs text-slate-600">
+                <span>Ai nevoie de compilatorul C++ (Xcode Command Line Tools).</span>
+                <button
+                  onClick={() => window.api.installCompiler()}
+                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700"
+                >
+                  Instalează compilatorul
+                </button>
+                <span className="text-slate-400">
+                  Se deschide instalatorul Apple. După instalare, apasă din nou Run.
+                </span>
+              </div>
+            ) : (
+              <pre
+                className={`min-h-0 flex-1 overflow-auto whitespace-pre-wrap p-3 font-mono text-xs ${result?.ok ? 'text-slate-700' : 'text-rose-700'}`}
+              >
+                {result
+                  ? [result.stdout, result.stderr].filter(Boolean).join('\n') || '(no output)'
+                  : 'Run the code to see output.'}
+              </pre>
+            )}
           </div>
         </div>
       </section>
