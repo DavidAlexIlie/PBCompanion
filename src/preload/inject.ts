@@ -330,9 +330,100 @@ function watchSubmissions(): void {
   )
 }
 
+// ----------------------------------------------------------------------------
+// pbinfo login autofill (local-only). The user's saved login lives encrypted
+// on this machine; here we only (a) fill the login fields so the user can click
+// "Autentificare", and (b) report a login the user submits so main can offer to
+// remember it. The plaintext is handled only in this webview (where the user
+// types it anyway) and the main process — never in our React UI.
+// ----------------------------------------------------------------------------
+const LOGIN_FORM_SEL = '#form-login-modal'
+const LOGIN_USER_SEL = '#user_login, input[name="user"]'
+const LOGIN_SECRET_SEL = '#parola_login, input[name="parola"]'
+
+function onPbinfo(): boolean {
+  try {
+    return location.hostname.endsWith('pbinfo.ro')
+  } catch {
+    return false
+  }
+}
+
+function loginFields(): { user: HTMLInputElement; secret: HTMLInputElement } | null {
+  const user = document.querySelector<HTMLInputElement>(LOGIN_USER_SEL)
+  const secret = document.querySelector<HTMLInputElement>(LOGIN_SECRET_SEL)
+  return user && secret ? { user, secret } : null
+}
+
+let autofilledThisPage = false
+
+async function autofillLogin(): Promise<void> {
+  try {
+    if (autofilledThisPage || !onPbinfo()) return
+    const fields = loginFields()
+    if (!fields) return
+    // Never clobber something the user has started typing.
+    if (fields.user.value || fields.secret.value) return
+    const saved = (await ipcRenderer.invoke('creds:get')) as { user: string; secret: string } | null
+    if (!saved) return
+    autofilledThisPage = true
+    setFieldValue(fields.user, saved.user)
+    setFieldValue(fields.secret, saved.secret)
+    log('login autofilled from local store')
+  } catch (err) {
+    log('autofillLogin failed (non-fatal)', err)
+  }
+}
+
+function setFieldValue(el: HTMLInputElement, value: string): void {
+  el.value = value
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+function captureLogin(): void {
+  try {
+    if (!onPbinfo()) return
+    const fields = loginFields()
+    if (!fields) return
+    const user = fields.user.value.trim()
+    const secret = fields.secret.value
+    if (!user || !secret) return
+    ipcRenderer.send('pbinfo:login-entered', { user, secret })
+    log('login submission observed (offered to main for local save)')
+  } catch (err) {
+    log('captureLogin failed (non-fatal)', err)
+  }
+}
+
+function watchLogin(): void {
+  // Capture when the login form is submitted or its submit button clicked.
+  document.addEventListener(
+    'submit',
+    (e) => {
+      const form = e.target as HTMLElement | null
+      if (form?.matches?.(LOGIN_FORM_SEL) || form?.querySelector?.(LOGIN_SECRET_SEL)) captureLogin()
+    },
+    true
+  )
+  document.addEventListener(
+    'click',
+    (e) => {
+      const el = (e.target as HTMLElement | null)?.closest('button, input[type="submit"]')
+      if (!el) return
+      const form = el.closest(LOGIN_FORM_SEL)
+      if (form && (el.getAttribute('type') === 'submit' || /autentificare/i.test(el.textContent || '')))
+        captureLogin()
+    },
+    true
+  )
+}
+
 function init(): void {
   announcePage()
   watchSubmissions()
+  watchLogin()
+  void autofillLogin()
   scan()
   if (pendingForCurrentProblem()) ensureVerdictPolling()
   void restorePendingFromMain()
@@ -347,6 +438,7 @@ function init(): void {
       // Scan on problem pages and on any page where we have a problem context
       // (e.g. an evaluation/solution page), so verdicts are caught either way.
       if (isProblemPage(location.href) || lastProblemId != null) scan()
+      void autofillLogin() // the login modal may be injected after load
     }, 600)
   }
   try {

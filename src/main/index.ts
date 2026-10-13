@@ -13,6 +13,7 @@ import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
 import { pushSnapshot, startDesktopSync, stopDesktopSync } from './sync'
 import { compileAndRun } from './compiler'
+import { hasLogin, saveLogin, loadLogin, clearLogin, type StoredLogin } from './credentials'
 import type {
   ViewBounds,
   UserStatus,
@@ -24,6 +25,32 @@ import type {
 } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
+
+// A login the user just typed in the pbinfo webview, held only until they
+// answer the "save it?" prompt. Never written to disk until they say yes, and
+// never sent to our React UI (only the username is, to label the prompt).
+let pendingLogin: StoredLogin | null = null
+let loginOfferDismissed = false // "Not now" silences the prompt for this run
+
+function dataDir(): string {
+  return settings.getSettings().dataDir
+}
+
+/** The pbinfo webview reports a login the user just submitted there. */
+function onLoginEntered(login: StoredLogin): void {
+  if (!login?.user || !login?.secret) return
+  if (!settings.getSettings().rememberLogin) return
+  const stored = loadLogin(dataDir())
+  if (stored && stored.user === login.user && stored.secret === login.secret) return // unchanged
+  if (stored && stored.user === login.user) {
+    // Same account, new password: quietly keep the saved copy current.
+    saveLogin(dataDir(), login)
+    mainWindow?.webContents.send('login:saved', { user: login.user, updated: true })
+    return
+  }
+  pendingLogin = login
+  if (!loginOfferDismissed) mainWindow?.webContents.send('login:offer', { user: login.user })
+}
 
 function notifyDataChanged(): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('data:changed')
@@ -279,6 +306,31 @@ function registerIpc(): void {
     notifyDataChanged()
     return res.filePaths[0]
   })
+
+  // ---- saved pbinfo login (local, encrypted) ----
+  // creds:get is for the pbinfo webview's autofill only. It is deliberately
+  // NOT part of window.api, so our React renderer can never read the secret.
+  ipcMain.handle('creds:get', () =>
+    settings.getSettings().rememberLogin ? loadLogin(dataDir()) : null
+  )
+  ipcMain.handle('creds:has', () => hasLogin(dataDir()))
+  ipcMain.handle('creds:confirmSave', () => {
+    if (!pendingLogin) return false
+    saveLogin(dataDir(), pendingLogin)
+    const user = pendingLogin.user
+    pendingLogin = null
+    mainWindow?.webContents.send('login:saved', { user, updated: false })
+    return true
+  })
+  ipcMain.handle('creds:dismissOffer', () => {
+    pendingLogin = null
+    loginOfferDismissed = true
+  })
+  ipcMain.handle('creds:clear', () => {
+    clearLogin(dataDir())
+    pendingLogin = null
+  })
+  ipcMain.on('pbinfo:login-entered', (_e, login: StoredLogin) => onLoginEntered(login))
 
   // ---- pbinfo webview control ----
   ipcMain.handle('pbinfo:navState', () => pb.getNavState())

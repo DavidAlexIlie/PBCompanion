@@ -8,6 +8,7 @@ import GroupsTab from './components/GroupsTab'
 import SettingsView from './components/SettingsView'
 import CppWorkspace from './components/CppWorkspace'
 import ProblemDetail from './components/ProblemDetail'
+import LoginToast from './components/LoginToast'
 import Splitter, { usePersistentNumber, clamp } from './components/Splitter'
 import { useThemeSync } from './lib/theme'
 
@@ -169,6 +170,7 @@ export default function App(): JSX.Element {
       </div>
 
       {detailProblemId !== null && <ProblemDetail problemId={detailProblemId} />}
+      <LoginToast />
     </div>
   )
 }

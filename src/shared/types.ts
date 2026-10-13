@@ -48,6 +48,9 @@ export interface AppSettings {
   bandPartialMin: number // score >= this and < 100 => partial (amber). default 1
   bandCompleted: number // score >= this => completed (blue). default 100
   theme: ThemeName
+  // Offer to remember the pbinfo login on this machine and autofill it next
+  // time. The secret is encrypted locally; nothing is ever uploaded.
+  rememberLogin: boolean
   dataDir: string
 }
 

@@ -89,6 +89,22 @@ const api = {
   submitSolution: (problemId: number, source: string): Promise<SubmitSolutionResult> =>
     ipcRenderer.invoke('workspace:submit', { problemId, source }),
 
+  // ---- saved pbinfo login (local only; the secret never crosses to here) ----
+  hasSavedLogin: (): Promise<boolean> => ipcRenderer.invoke('creds:has'),
+  clearSavedLogin: (): Promise<void> => ipcRenderer.invoke('creds:clear'),
+  confirmSaveLogin: (): Promise<boolean> => ipcRenderer.invoke('creds:confirmSave'),
+  dismissLoginOffer: (): Promise<void> => ipcRenderer.invoke('creds:dismissOffer'),
+  onLoginOffer: (cb: (info: { user: string }) => void): (() => void) => {
+    const h = (_: unknown, info: { user: string }): void => cb(info)
+    ipcRenderer.on('login:offer', h)
+    return () => ipcRenderer.removeListener('login:offer', h)
+  },
+  onLoginSaved: (cb: (info: { user: string; updated: boolean }) => void): (() => void) => {
+    const h = (_: unknown, info: { user: string; updated: boolean }): void => cb(info)
+    ipcRenderer.on('login:saved', h)
+    return () => ipcRenderer.removeListener('login:saved', h)
+  },
+
   // ---- pbinfo webview control ----
   navigatePbinfo: (url: string): Promise<void> => ipcRenderer.invoke('pbinfo:navigate', url),
   getPbinfoNavState: (): Promise<PbinfoNavState> => ipcRenderer.invoke('pbinfo:navState'),

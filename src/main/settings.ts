@@ -44,7 +44,8 @@ const DEFAULTS = {
   autoMoveOnHundred: true,
   bandPartialMin: 1,
   bandCompleted: 100,
-  theme: 'light' as ThemeName
+  theme: 'light' as ThemeName,
+  rememberLogin: true
 }
 
 export function getSettings(): AppSettings {
@@ -62,6 +63,7 @@ export function getSettings(): AppSettings {
     bandPartialMin: num('bandPartialMin', DEFAULTS.bandPartialMin),
     bandCompleted: num('bandCompleted', DEFAULTS.bandCompleted),
     theme: getSetting('theme') === 'dark' ? 'dark' : DEFAULTS.theme,
+    rememberLogin: bool('rememberLogin', DEFAULTS.rememberLogin),
     dataDir: readBootConfig().dataDir
   }
 }
@@ -73,5 +75,6 @@ export function setSettings(patch: Partial<AppSettings>): AppSettings {
   if (patch.bandPartialMin !== undefined) setSetting('bandPartialMin', String(patch.bandPartialMin))
   if (patch.bandCompleted !== undefined) setSetting('bandCompleted', String(patch.bandCompleted))
   if (patch.theme !== undefined) setSetting('theme', patch.theme)
+  if (patch.rememberLogin !== undefined) setSetting('rememberLogin', String(patch.rememberLogin))
   return getSettings()
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { IconReload } from './icons'
 import { applyTheme } from '../lib/theme'
@@ -8,6 +8,16 @@ export default function SettingsView(): JSX.Element {
   const { settings, refreshSettings, refresh } = useStore()
   const [syncState, setSyncState] = useState<'idle' | 'pushing' | 'success' | 'error'>('idle')
   const [syncMessage, setSyncMessage] = useState('')
+  const [hasSavedLogin, setHasSavedLogin] = useState(false)
+
+  const refreshSavedLogin = (): void => {
+    window.api.hasSavedLogin().then(setHasSavedLogin)
+  }
+  useEffect(() => {
+    refreshSavedLogin()
+    return window.api.onLoginSaved(refreshSavedLogin)
+  }, [])
+
   if (!settings) return <div />
 
   const update = async (patch: Partial<AppSettings>): Promise<void> => {
@@ -83,6 +93,37 @@ export default function SettingsView(): JSX.Element {
             min={1}
             max={100}
             onCommit={(n) => update({ bandCompleted: n })}
+          />
+        </Section>
+
+        <Section title="pbinfo login">
+          <Toggle
+            label="Remember my pbinfo login on this PC"
+            desc="After you log in on pbinfo, offer to save it and fill it in next time. Encrypted on this machine with your OS keychain — never uploaded or synced."
+            checked={settings.rememberLogin}
+            onChange={(v) => update({ rememberLogin: v })}
+          />
+          <Row
+            label="Saved login"
+            desc={
+              hasSavedLogin
+                ? 'A pbinfo login is saved (encrypted) on this PC.'
+                : 'No login saved yet. Log in on pbinfo and choose Save when asked.'
+            }
+            action={
+              <button
+                disabled={!hasSavedLogin}
+                onClick={async () => {
+                  if (confirm('Forget the saved pbinfo login on this PC?')) {
+                    await window.api.clearSavedLogin()
+                    refreshSavedLogin()
+                  }
+                }}
+                className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Forget login
+              </button>
+            }
           />
         </Section>
 
