@@ -1,8 +1,9 @@
 name: Build macOS
 
-# Builds an UNSIGNED macOS app (.dmg + .zip) on a real macOS runner, since
-# electron-builder --mac cannot run on Windows. Trigger it by hand from the
-# Actions tab, or by pushing a tag like v0.1.7.
+# Builds UNSIGNED macOS apps (.dmg + .zip). Each architecture is built on a
+# NATIVE runner so the better-sqlite3 native module matches the target arch
+# (cross-compiling it produced an x86_64 binary in an arm64 app, crashing on
+# Apple Silicon). Trigger from the Actions tab, or by pushing a tag like v0.1.7.
 on:
   workflow_dispatch:
   push:
@@ -11,7 +12,15 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14 # Apple Silicon (arm64)
+            arch: arm64
+          - os: macos-13 # Intel (x86_64)
+            arch: x64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -19,33 +28,23 @@ jobs:
         with:
           node-version: 20
 
-      # postinstall runs electron-rebuild, compiling better-sqlite3 for macOS.
+      # postinstall runs electron-rebuild, compiling better-sqlite3 for this
+      # runner's native arch (= the target arch, since the runner matches it).
       - name: Install dependencies
         run: npm ci
 
       - name: Build renderer/main/preload
         run: npm run build
 
-      # Native modules must match each target arch. npmRebuild is off, so we
-      # rebuild better-sqlite3 for the exact arch right before packaging it.
-      - name: Package macOS (arm64)
-        run: |
-          npx electron-rebuild --arch arm64 -f -w better-sqlite3
-          npx electron-builder --mac --arm64 --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
-      - name: Package macOS (x64)
-        run: |
-          npx electron-rebuild --arch x64 -f -w better-sqlite3
-          npx electron-builder --mac --x64 --publish never
+      - name: Package macOS app (unsigned)
+        run: npx electron-builder --mac --${{ matrix.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PBCompanion-macOS
+          name: PBCompanion-mac-${{ matrix.arch }}
           path: |
             release/*.dmg
             release/*.zip
