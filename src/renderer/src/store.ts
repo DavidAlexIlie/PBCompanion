@@ -19,6 +19,9 @@ interface State {
   showWebview: boolean // is the embedded pbinfo browser visible?
   webviewFull: boolean // pop webview to full width while solving
   resizing: boolean // a splitter is being dragged (suppress the webview overlay)
+  // A saved solution waiting to be opened in the C++ workspace once the
+  // browser lands on its problem.
+  workspaceLoad: { problemId: number; source: string } | null
 
   setRoute: (r: Route) => void
   setDetected: (d: DetectedProblem | null) => void
@@ -26,6 +29,7 @@ interface State {
   setShowWebview: (v: boolean) => void
   setWebviewFull: (v: boolean) => void
   setResizing: (v: boolean) => void
+  setWorkspaceLoad: (v: { problemId: number; source: string } | null) => void
 
   refresh: () => Promise<void>
   refreshSettings: () => Promise<void>
@@ -41,6 +45,7 @@ export const useStore = create<State>((set, get) => ({
   showWebview: false,
   webviewFull: false,
   resizing: false,
+  workspaceLoad: null,
 
   setRoute: (r) => set({ route: r }),
   setDetected: (d) => set({ detected: d }),
@@ -48,6 +53,7 @@ export const useStore = create<State>((set, get) => ({
   setShowWebview: (v) => set({ showWebview: v, webviewFull: v ? get().webviewFull : false }),
   setWebviewFull: (v) => set({ webviewFull: v }),
   setResizing: (v) => set({ resizing: v }),
+  setWorkspaceLoad: (v) => set({ workspaceLoad: v }),
 
   refresh: async () => {
     const [problems, groups] = await Promise.all([

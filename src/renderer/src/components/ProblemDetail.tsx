@@ -4,11 +4,11 @@ import { useStore } from '../store'
 import { scoreBand, bandTag } from '../lib/score'
 import { cleanProblemName } from '../../../shared/text'
 import { cleanSourceCode } from '../../../shared/sourceCode'
-import { IconClose, IconTrash, IconExternal, IconNote, IconBoard, IconCopy, IconCheckMark } from './icons'
+import { IconClose, IconTrash, IconExternal, IconNote, IconBoard, IconCopy, IconCheckMark, IconCode } from './icons'
 import type { Attempt } from '../../../shared/types'
 
 export default function ProblemDetail({ problemId }: { problemId: number }): JSX.Element {
-  const { problems, settings, openDetail, setShowWebview } = useStore()
+  const { problems, settings, openDetail, setShowWebview, setRoute, setWorkspaceLoad } = useStore()
   const problem = problems.find((p) => p.id === problemId)
   const [attempts, setAttempts] = useState<Attempt[]>([])
 
@@ -30,6 +30,19 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
 
   const openInPbinfo = (): void => {
     setShowWebview(true)
+    window.api.navigatePbinfo(problem.url ?? `https://www.pbinfo.ro/probleme/${problem.id}`)
+    openDetail(null)
+  }
+
+  // Best captured solution: highest score, newest on ties.
+  const savedSolution = attempts
+    .filter((a) => a.source_code)
+    .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.submitted_at.localeCompare(a.submitted_at))[0]
+
+  const openInWorkspace = (): void => {
+    if (!savedSolution?.source_code) return
+    setWorkspaceLoad({ problemId: problem.id, source: cleanSourceCode(savedSolution.source_code) })
+    setRoute('workspace')
     window.api.navigatePbinfo(problem.url ?? `https://www.pbinfo.ro/probleme/${problem.id}`)
     openDetail(null)
   }
@@ -88,9 +101,18 @@ export default function ProblemDetail({ problemId }: { problemId: number }): JSX
           >
             <IconBoard className="h-4 w-4" /> Whiteboard
           </button>
+          {savedSolution && (
+            <button
+              onClick={openInWorkspace}
+              title={`Open the saved ${savedSolution.score ?? '—'} pts solution in main.cpp`}
+              className="ml-auto flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white shadow-soft hover:bg-brand-700"
+            >
+              <IconCode className="h-4 w-4" /> Open in workspace
+            </button>
+          )}
           <button
             onClick={openInPbinfo}
-            className="ml-auto flex items-center gap-1.5 rounded-lg border border-brand-200 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50"
+            className={`${savedSolution ? '' : 'ml-auto '}flex items-center gap-1.5 rounded-lg border border-brand-200 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50`}
           >
             <IconExternal className="h-4 w-4" /> Open in pbinfo
           </button>
