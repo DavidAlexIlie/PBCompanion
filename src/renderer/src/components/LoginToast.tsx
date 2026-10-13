@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
-import { IconClose, IconCheckMark } from './icons'
+import { IconCheckMark, IconBrowser } from './icons'
 
 /**
- * A Google-style, non-blocking prompt: after the user logs in on pbinfo inside
- * the app, offer to remember that login on this machine. The secret is held in
- * the main process and only written (encrypted) if the user clicks Save — this
- * UI only ever sees the username.
+ * Shown after the user logs in on pbinfo inside the app: offer to remember that
+ * login on this machine. The secret stays in the main process and is only
+ * written (encrypted) if the user clicks Save — this UI only ever sees the
+ * username.
+ *
+ * Carries `data-pbinfo-overlay`: the pbinfo browser is a native layer painted
+ * ABOVE this React DOM, so App.tsx hides it while an overlay is present. We
+ * then blur the app underneath and centre the dialog, instead of a card tucked
+ * behind the webview. Colours come from theme CSS variables, so it follows
+ * light/dark automatically.
  */
 type Toast =
   | { kind: 'offer'; user: string }
@@ -25,79 +31,65 @@ export default function LoginToast(): JSX.Element | null {
     }
   }, [])
 
-  // Confirmations fade on their own; the offer waits for a choice.
+  // Confirmations close on their own; the offer waits for a choice.
   useEffect(() => {
     if (toast?.kind !== 'saved') return
-    const t = setTimeout(() => setToast(null), 3500)
+    const t = setTimeout(() => setToast(null), 2200)
     return () => clearTimeout(t)
   }, [toast])
 
   if (!toast) return null
 
-  if (toast.kind === 'saved') {
-    return (
-      <Shell>
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-            <IconCheckMark className="h-4 w-4" />
-          </span>
-          <div className="text-sm text-slate-700">
-            {toast.updated ? 'Saved login updated' : 'Login saved'} on this PC for{' '}
-            <span className="font-semibold">{toast.user}</span>.
-          </div>
-        </div>
-      </Shell>
-    )
-  }
-
   return (
-    <Shell>
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-slate-900">Remember this login?</div>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Save <span className="font-semibold text-slate-700">{toast.user}</span> on this PC and
-            fill it in next time. Stored encrypted, locally — never uploaded.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={async () => {
-                await window.api.confirmSaveLogin()
-                // The 'login:saved' event swaps this to the confirmation.
-              }}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700"
-            >
-              Save
-            </button>
-            <button
-              onClick={async () => {
-                await window.api.dismissLoginOffer()
-                setToast(null)
-              }}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              Not now
-            </button>
+    <div
+      data-pbinfo-overlay
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-500/20 p-6 backdrop-blur-md"
+    >
+      <div className="w-[26rem] max-w-[92vw] animate-pop-in rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        {toast.kind === 'saved' ? (
+          <div className="flex flex-col items-center text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <IconCheckMark className="h-6 w-6" />
+            </span>
+            <div className="mt-3 text-base font-bold text-slate-900">
+              {toast.updated ? 'Saved login updated' : 'Login saved'}
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Stored encrypted on this PC for{' '}
+              <span className="font-semibold text-slate-700">{toast.user}</span>. It will fill in
+              automatically next time.
+            </p>
           </div>
-        </div>
-        <button
-          onClick={async () => {
-            await window.api.dismissLoginOffer()
-            setToast(null)
-          }}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-        >
-          <IconClose className="h-4 w-4" />
-        </button>
+        ) : (
+          <div className="flex flex-col items-center text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+              <IconBrowser className="h-6 w-6" />
+            </span>
+            <h2 className="mt-3 text-lg font-bold text-slate-900">Save this login?</h2>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Remember <span className="font-semibold text-slate-700">{toast.user}</span> on this PC
+              and fill it in next time. Stored encrypted, locally — never uploaded or synced.
+            </p>
+            <div className="mt-5 flex w-full gap-2.5">
+              <button
+                onClick={async () => {
+                  await window.api.dismissLoginOffer()
+                  setToast(null)
+                }}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Not now
+              </button>
+              <button
+                onClick={() => void window.api.confirmSaveLogin()}
+                className="flex-1 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-bold text-white shadow-soft hover:bg-brand-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </Shell>
-  )
-}
-
-function Shell({ children }: { children: React.ReactNode }): JSX.Element {
-  return (
-    <div className="fixed bottom-5 right-5 z-[60] w-80 animate-pop-in rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
-      {children}
     </div>
   )
 }

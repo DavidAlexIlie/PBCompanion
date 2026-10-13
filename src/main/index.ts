@@ -7,7 +7,8 @@ import {
   attachSessionPersistence,
   clearSessionBackup,
   flushSession,
-  onPbinfoCookieChanged
+  onPbinfoCookieChanged,
+  onPbinfoAuthLogin
 } from './sessionPersist'
 import { openPanel, closeProblemPanels } from './panels'
 import { ensureGroupFolder, renameGroupFolder } from './groupFolders'
@@ -26,19 +27,43 @@ import type {
 
 let mainWindow: BrowserWindow | null = null
 
-// A login the user just typed in the pbinfo webview, held only until they
-// answer the "save it?" prompt. Never written to disk until they say yes, and
-// never sent to our React UI (only the username is, to label the prompt).
+// A login the user just typed in the pbinfo webview. Held only until pbinfo
+// confirms it (its auth cookie is set) and the user answers the "save it?"
+// prompt. Never written to disk until they say yes, and never sent to our React
+// UI (only the username is, to label the prompt).
 let pendingLogin: StoredLogin | null = null
+let pendingLoginTimer: ReturnType<typeof setTimeout> | null = null
 let loginOfferDismissed = false // "Not now" silences the prompt for this run
+
+// A login attempt is only worth offering if pbinfo accepts it within a short
+// window. After that, assume it failed/was abandoned and forget the attempt.
+const LOGIN_CONFIRM_WINDOW_MS = 30_000
 
 function dataDir(): string {
   return settings.getSettings().dataDir
 }
 
-/** The pbinfo webview reports a login the user just submitted there. */
-function onLoginEntered(login: StoredLogin): void {
+/** The pbinfo webview reports a login the user just submitted (not yet accepted). */
+function onLoginAttempt(login: StoredLogin): void {
   if (!login?.user || !login?.secret) return
+  if (!settings.getSettings().rememberLogin) return
+  pendingLogin = login
+  if (pendingLoginTimer) clearTimeout(pendingLoginTimer)
+  pendingLoginTimer = setTimeout(() => {
+    pendingLogin = null
+    pendingLoginTimer = null
+  }, LOGIN_CONFIRM_WINDOW_MS)
+}
+
+/** pbinfo set its auth cookie — the pending login (if any) actually succeeded. */
+function onLoginConfirmed(): void {
+  const login = pendingLogin
+  if (!login) return
+  pendingLogin = null
+  if (pendingLoginTimer) {
+    clearTimeout(pendingLoginTimer)
+    pendingLoginTimer = null
+  }
   if (!settings.getSettings().rememberLogin) return
   const stored = loadLogin(dataDir())
   if (stored && stored.user === login.user && stored.secret === login.secret) return // unchanged
@@ -48,6 +73,7 @@ function onLoginEntered(login: StoredLogin): void {
     mainWindow?.webContents.send('login:saved', { user: login.user, updated: true })
     return
   }
+  // Hold it so the user can accept via the prompt.
   pendingLogin = login
   if (!loginOfferDismissed) mainWindow?.webContents.send('login:offer', { user: login.user })
 }
@@ -290,6 +316,18 @@ function registerIpc(): void {
     db.clearOrganizerData()
     notifyDataChanged()
   })
+  // DEV: wipe everything so the next launch is a clean first-run — used while
+  // building the onboarding tutorial, to replay the new-user experience.
+  ipcMain.handle('app:devReset', async () => {
+    db.clearOrganizerData()
+    clearLogin(dataDir())
+    clearSessionBackup() // otherwise the next launch restores the old login
+    pendingLogin = null
+    loginOfferDismissed = false
+    await pb.clearPbinfoSession()
+    pb.navigate('https://www.pbinfo.ro/')
+    notifyDataChanged()
+  })
   ipcMain.handle('app:openDataDir', () => {
     shell.openPath(settings.getSettings().dataDir)
   })
@@ -330,7 +368,7 @@ function registerIpc(): void {
     clearLogin(dataDir())
     pendingLogin = null
   })
-  ipcMain.on('pbinfo:login-entered', (_e, login: StoredLogin) => onLoginEntered(login))
+  ipcMain.on('pbinfo:login-attempt', (_e, login: StoredLogin) => onLoginAttempt(login))
 
   // ---- pbinfo webview control ----
   ipcMain.handle('pbinfo:navState', () => pb.getNavState())
@@ -347,6 +385,7 @@ app.whenReady().then(async () => {
   // Restore a durable login (cookies mirrored to the data folder) before the
   // webview loads, so the user stays signed in across reinstalls.
   onPbinfoCookieChanged(pb.handleCookieChanged)
+  onPbinfoAuthLogin(onLoginConfirmed) // offer to save a login only once pbinfo accepts it
   await attachSessionPersistence(pb.PARTITION, boot.dataDir)
   startDesktopSync(boot.dataDir)
   registerIpc()

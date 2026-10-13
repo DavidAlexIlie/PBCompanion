@@ -63,12 +63,23 @@ let runningSave: Promise<void> | null = null
 let loggedOut = false // the user ended the session on purpose
 let cookieChangedHandler: ((cookie: Electron.Cookie, cause: string, removed: boolean) => void) | null =
   null
+let authLoginHandler: (() => void) | null = null
 
 /** Let the pbinfo view react immediately when authentication cookies change. */
 export function onPbinfoCookieChanged(
   handler: (cookie: Electron.Cookie, cause: string, removed: boolean) => void
 ): void {
   cookieChangedHandler = handler
+}
+
+/**
+ * Fires when pbinfo sets/updates its auth cookie — i.e. a login just succeeded.
+ * Used to offer saving a login only AFTER pbinfo accepts it, never on a failed
+ * attempt. (Harmless if it also fires on cookie restore/refresh: the consumer
+ * only acts when a login attempt is pending.)
+ */
+export function onPbinfoAuthLogin(cb: () => void): void {
+  authLoginHandler = cb
 }
 
 /** Restore cookies from disk into the partition, then keep the file in sync. */
@@ -87,7 +98,10 @@ export async function attachSessionPersistence(partition: string, dataDir: strin
     // An explicit logout must reach the backup, otherwise the next launch
     // restores the session the user just ended.
     if (removed && isPbinfoAuthCookie(cookie) && cause === 'explicit') loggedOut = true
-    if (!removed && isPbinfoAuthCookie(cookie)) loggedOut = false
+    if (!removed && isPbinfoAuthCookie(cookie)) {
+      loggedOut = false
+      if (cause === 'explicit' || cause === 'overwrite') authLoginHandler?.()
+    }
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => void queueSave(ses, dataDir), 250)
     cookieChangedHandler?.(cookie, cause, removed)

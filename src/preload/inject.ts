@@ -337,9 +337,13 @@ function watchSubmissions(): void {
 // remember it. The plaintext is handled only in this webview (where the user
 // types it anyway) and the main process — never in our React UI.
 // ----------------------------------------------------------------------------
-const LOGIN_FORM_SEL = '#form-login-modal'
-const LOGIN_USER_SEL = '#user_login, input[name="user"]'
-const LOGIN_SECRET_SEL = '#parola_login, input[name="parola"]'
+// pbinfo has TWO login spots: the "Autentificare" modal (#form-login-modal)
+// and an inline form on the home page. Both are plain forms with a password
+// field, so we work generically off any `input[type=password]` instead of
+// hard-coded ids — that covers both, and survives markup tweaks.
+const SECRET_SEL = 'input[type="password"]'
+const USER_SEL =
+  '#user_login, input[name="user"], input[name="username"], input[name="email"], input[type="email"]'
 
 function onPbinfo(): boolean {
   try {
@@ -349,27 +353,62 @@ function onPbinfo(): boolean {
   }
 }
 
-function loginFields(): { user: HTMLInputElement; secret: HTMLInputElement } | null {
-  const user = document.querySelector<HTMLInputElement>(LOGIN_USER_SEL)
-  const secret = document.querySelector<HTMLInputElement>(LOGIN_SECRET_SEL)
-  return user && secret ? { user, secret } : null
+interface LoginPair {
+  scope: ParentNode
+  user: HTMLInputElement
+  secret: HTMLInputElement
 }
 
-let autofilledThisPage = false
+/** The username field paired with a given password field, within its form. */
+function userFieldFor(scope: ParentNode, secret: HTMLInputElement): HTMLInputElement | null {
+  const explicit = scope.querySelector<HTMLInputElement>(USER_SEL)
+  if (explicit) return explicit
+  // Fall back to the text input that sits just before the password field.
+  const texts = [
+    ...scope.querySelectorAll<HTMLInputElement>('input[type="text"], input:not([type])')
+  ]
+  const before = texts.filter(
+    (t) => t.compareDocumentPosition(secret) & Node.DOCUMENT_POSITION_FOLLOWING
+  )
+  return before[before.length - 1] ?? texts[0] ?? null
+}
+
+/** Every login form on the page: one per password field, deduped by scope. */
+function loginPairs(): LoginPair[] {
+  const pairs: LoginPair[] = []
+  const seen = new Set<ParentNode>()
+  for (const secret of document.querySelectorAll<HTMLInputElement>(SECRET_SEL)) {
+    const scope = (secret.closest('form') as ParentNode) ?? document
+    if (seen.has(scope)) continue
+    const user = userFieldFor(scope, secret)
+    if (user) {
+      seen.add(scope)
+      pairs.push({ scope, user, secret })
+    }
+  }
+  return pairs
+}
+
+let savedCreds: { user: string; secret: string } | null | undefined // undefined = not fetched
+const filledForms = new WeakSet<ParentNode>()
 
 async function autofillLogin(): Promise<void> {
   try {
-    if (autofilledThisPage || !onPbinfo()) return
-    const fields = loginFields()
-    if (!fields) return
-    // Never clobber something the user has started typing.
-    if (fields.user.value || fields.secret.value) return
-    const saved = (await ipcRenderer.invoke('creds:get')) as { user: string; secret: string } | null
-    if (!saved) return
-    autofilledThisPage = true
-    setFieldValue(fields.user, saved.user)
-    setFieldValue(fields.secret, saved.secret)
-    log('login autofilled from local store')
+    if (!onPbinfo()) return
+    const pairs = loginPairs()
+    if (pairs.length === 0) return
+    if (savedCreds === undefined) {
+      savedCreds = (await ipcRenderer.invoke('creds:get')) as typeof savedCreds
+    }
+    if (!savedCreds) return
+    for (const { scope, user, secret } of pairs) {
+      if (filledForms.has(scope)) continue
+      if (user.value || secret.value) continue // don't clobber typed input
+      filledForms.add(scope)
+      setFieldValue(user, savedCreds.user)
+      setFieldValue(secret, savedCreds.secret)
+      log('login autofilled from local store')
+    }
   } catch (err) {
     log('autofillLogin failed (non-fatal)', err)
   }
@@ -381,39 +420,49 @@ function setFieldValue(el: HTMLInputElement, value: string): void {
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-function captureLogin(): void {
+function captureFrom(scope: ParentNode): void {
   try {
     if (!onPbinfo()) return
-    const fields = loginFields()
-    if (!fields) return
-    const user = fields.user.value.trim()
-    const secret = fields.secret.value
-    if (!user || !secret) return
-    ipcRenderer.send('pbinfo:login-entered', { user, secret })
-    log('login submission observed (offered to main for local save)')
+    const secret = scope.querySelector<HTMLInputElement>(SECRET_SEL)
+    if (!secret) return
+    const userField = userFieldFor(scope, secret)
+    const user = userField?.value.trim() ?? ''
+    const pw = secret.value
+    if (!user || !pw) return
+    ipcRenderer.send('pbinfo:login-attempt', { user, secret: pw })
+    log('login submission observed (pending pbinfo confirmation)')
   } catch (err) {
-    log('captureLogin failed (non-fatal)', err)
+    log('captureFrom failed (non-fatal)', err)
   }
 }
 
+const LOGIN_LABEL_RE = /autentificare|conectare|logare|log\s*in|login|intra in cont/i
+
 function watchLogin(): void {
-  // Capture when the login form is submitted or its submit button clicked.
+  // Native submit (Enter or a type=submit button) on any form with a password.
   document.addEventListener(
     'submit',
     (e) => {
       const form = e.target as HTMLElement | null
-      if (form?.matches?.(LOGIN_FORM_SEL) || form?.querySelector?.(LOGIN_SECRET_SEL)) captureLogin()
+      if (form?.querySelector?.(SECRET_SEL)) captureFrom(form)
     },
     true
   )
+  // JS-driven submits (a button/link that posts without a native submit event).
   document.addEventListener(
     'click',
     (e) => {
-      const el = (e.target as HTMLElement | null)?.closest('button, input[type="submit"]')
+      const el = (e.target as HTMLElement | null)?.closest(
+        'button, input[type="submit"], a'
+      ) as HTMLElement | null
       if (!el) return
-      const form = el.closest(LOGIN_FORM_SEL)
-      if (form && (el.getAttribute('type') === 'submit' || /autentificare/i.test(el.textContent || '')))
-        captureLogin()
+      const label = (el.textContent || (el as HTMLInputElement).value || '').trim()
+      const isSubmit = el.getAttribute('type') === 'submit'
+      if (!isSubmit && !LOGIN_LABEL_RE.test(label)) return
+      // Prefer the enclosing form; fall back to the whole document so the
+      // home-page spot works even if its markup differs from the modal.
+      const scope = (el.closest('form') as ParentNode) ?? document
+      if (scope.querySelector?.(SECRET_SEL)) captureFrom(scope)
     },
     true
   )

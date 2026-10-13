@@ -73,6 +73,7 @@ const api = {
     ipcRenderer.invoke('settings:set', patch),
   resetSession: (): Promise<void> => ipcRenderer.invoke('app:resetSession'),
   clearLocalData: (): Promise<void> => ipcRenderer.invoke('app:clearLocalData'),
+  devReset: (): Promise<void> => ipcRenderer.invoke('app:devReset'),
   openDataDir: (): Promise<void> => ipcRenderer.invoke('app:openDataDir'),
   chooseDataDir: (): Promise<string | null> => ipcRenderer.invoke('app:chooseDataDir'),
   pushSyncNow: (): Promise<
