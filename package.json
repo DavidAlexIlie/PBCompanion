@@ -11,7 +11,8 @@
     "start": "electron-vite preview",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-compiler.ps1 && electron-vite build && electron-builder --win"
+    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-compiler.ps1 && electron-vite build && electron-builder --win",
+    "dist:mac": "electron-vite build && electron-builder --mac"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1"
@@ -55,13 +56,8 @@
     "files": [
       "out/**/*",
       "resources/icon.png",
-      "resources/icon.ico"
-    ],
-    "extraResources": [
-      {
-        "from": "tools/mingw64/w64devkit",
-        "to": "tools/w64devkit"
-      }
+      "resources/icon.ico",
+      "resources/icon-1024.png"
     ],
     "asarUnpack": [
       "**/*.node",
@@ -69,7 +65,13 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.ico",
+      "extraResources": [
+        {
+          "from": "tools/mingw64/w64devkit",
+          "to": "tools/w64devkit"
+        }
+      ]
     },
     "nsis": {
       "oneClick": true,
@@ -80,6 +82,15 @@
       "runAfterFinish": true,
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "category": "public.app-category.education",
+      "icon": "resources/icon-1024.png",
+      "identity": null
     }
   }
 }

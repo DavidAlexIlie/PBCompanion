@@ -78,9 +78,10 @@ function readConfig(dataDir: string): SyncConfig | null {
 }
 
 function editGist(gistId: string, snapshotPath: string): Promise<void> {
-  const gh = existsSync('C:\\Program Files\\GitHub CLI\\gh.exe')
-    ? 'C:\\Program Files\\GitHub CLI\\gh.exe'
-    : 'gh'
+  const gh =
+    process.platform === 'win32' && existsSync('C:\\Program Files\\GitHub CLI\\gh.exe')
+      ? 'C:\\Program Files\\GitHub CLI\\gh.exe'
+      : 'gh'
   return new Promise((resolve, reject) => {
     execFile(
       gh,

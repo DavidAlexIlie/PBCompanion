@@ -17,7 +17,7 @@ export async function compileAndRun(
   const workDir = join(dataDir, 'cpp-workspace', `problem-${problemId}`)
   mkdirSync(workDir, { recursive: true })
   const sourcePath = join(workDir, `problem-${problemId}.cpp`)
-  const outputPath = join(workDir, `problem-${problemId}.exe`)
+  const outputPath = join(workDir, `problem-${problemId}${process.platform === 'win32' ? '.exe' : ''}`)
   writeFileSync(sourcePath, source, 'utf-8')
 
   const compiler = findCompiler()
@@ -26,7 +26,10 @@ export async function compileAndRun(
       ok: false,
       phase: 'compiler_missing',
       stdout: '',
-      stderr: 'No C++ compiler found. Install g++ or place a portable compiler in tools\\mingw64\\bin.',
+      stderr:
+        process.platform === 'win32'
+          ? 'No C++ compiler found. Install g++ or place a portable compiler in tools\\mingw64\\bin.'
+          : 'No C++ compiler found. Install the Xcode Command Line Tools (xcode-select --install) or g++.',
       exitCode: null,
       timedOut: false
     }
@@ -60,23 +63,39 @@ function safeFileName(value: string | null): string | null {
   return /^[A-Za-z0-9_-]+\.(?:in|out|txt)$/i.test(clean) ? clean : null
 }
 
+const IS_WIN = process.platform === 'win32'
+
 function findCompiler(): string | null {
-  const candidates = [
-    join(process.resourcesPath, 'tools', 'w64devkit', 'bin', 'g++.exe'),
-    join(process.cwd(), 'tools', 'mingw64', 'w64devkit', 'bin', 'g++.exe'),
-    'C:\\msys64\\ucrt64\\bin\\g++.exe',
-    'C:\\msys64\\mingw64\\bin\\g++.exe',
-    'C:\\mingw64\\bin\\g++.exe',
-    'g++'
-  ]
-  const local = candidates.find((candidate) => candidate !== 'g++' && existsSync(candidate))
+  const candidates = IS_WIN
+    ? [
+        join(process.resourcesPath, 'tools', 'w64devkit', 'bin', 'g++.exe'),
+        join(process.cwd(), 'tools', 'mingw64', 'w64devkit', 'bin', 'g++.exe'),
+        'C:\\msys64\\ucrt64\\bin\\g++.exe',
+        'C:\\msys64\\mingw64\\bin\\g++.exe',
+        'C:\\mingw64\\bin\\g++.exe'
+      ]
+    : [
+        // macOS ships clang++ via the Xcode Command Line Tools; Linux has g++.
+        '/usr/bin/clang++',
+        '/usr/bin/g++',
+        '/usr/local/bin/g++',
+        '/opt/homebrew/bin/g++'
+      ]
+  const local = candidates.find((c) => existsSync(c))
   if (local) return local
-  try {
-    const result = execFileSync('where.exe', ['g++'], { encoding: 'utf-8', windowsHide: true })
-    return result.split(/\r?\n/).find(Boolean) ?? null
-  } catch {
-    return null
+  // Fall back to whatever is on PATH.
+  const names = IS_WIN ? ['g++'] : ['clang++', 'g++']
+  const locator = IS_WIN ? 'where.exe' : 'which'
+  for (const name of names) {
+    try {
+      const result = execFileSync(locator, [name], { encoding: 'utf-8', windowsHide: true })
+      const found = result.split(/\r?\n/).find(Boolean)
+      if (found) return found
+    } catch {
+      /* try the next name */
+    }
   }
+  return null
 }
 
 function runProcess(
