@@ -5,7 +5,7 @@ import { applyTheme } from '../lib/theme'
 import type { AppSettings, ThemeName } from '../../../shared/types'
 
 export default function SettingsView(): JSX.Element {
-  const { settings, refreshSettings, refresh, startTour, setRecordingDrag } = useStore()
+  const { settings, refreshSettings, refresh, startTour } = useStore()
   const [syncState, setSyncState] = useState<'idle' | 'pushing' | 'success' | 'error'>('idle')
   const [syncMessage, setSyncMessage] = useState('')
   const [hasSavedLogin, setHasSavedLogin] = useState(false)
@@ -66,18 +66,6 @@ export default function SettingsView(): JSX.Element {
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Replay
-              </button>
-            }
-          />
-          <Row
-            label="Record board drag (dev)"
-            desc="Drag #100 to Completed by hand; the tour replays that motion."
-            action={
-              <button
-                onClick={() => setRecordingDrag(true)}
-                className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
-              >
-                Record
               </button>
             }
           />

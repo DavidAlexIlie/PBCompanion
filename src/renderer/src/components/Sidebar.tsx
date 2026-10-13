@@ -51,30 +51,6 @@ export default function Sidebar(): JSX.Element {
         })}
       </nav>
 
-      <div className="px-3 pb-1 pt-2">
-        <button
-          onClick={async () => {
-            if (
-              !confirm(
-                'DEV reset: delete ALL local data, sign out of pbinfo, forget the saved login, and restart the onboarding. Continue?'
-              )
-            )
-              return
-            await window.api.devReset()
-            try {
-              localStorage.clear()
-            } catch {
-              /* ignore */
-            }
-            window.location.reload()
-          }}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-rose-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-rose-500 hover:bg-rose-50"
-          title="Wipe everything and replay the first-run experience (development)"
-        >
-          DEV reset
-        </button>
-      </div>
-
       <div className="border-t border-slate-100 p-3">
         <button
           data-tour="browse"
