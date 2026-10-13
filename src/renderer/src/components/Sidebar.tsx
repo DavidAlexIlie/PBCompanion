@@ -33,6 +33,7 @@ export default function Sidebar(): JSX.Element {
           return (
             <button
               key={r}
+              data-tour={`nav-${r}`}
               onClick={() => {
                 setRoute(r)
                 if (r !== 'home') setWebviewFull(false)
@@ -76,6 +77,7 @@ export default function Sidebar(): JSX.Element {
 
       <div className="border-t border-slate-100 p-3">
         <button
+          data-tour="browse"
           onClick={() => setShowWebview(!showWebview)}
           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
             showWebview

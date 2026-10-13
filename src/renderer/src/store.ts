@@ -30,6 +30,13 @@ interface State {
   setWebviewFull: (v: boolean) => void
   setResizing: (v: boolean) => void
   setWorkspaceLoad: (v: { problemId: number; source: string } | null) => void
+  tour: boolean // the step-by-step onboarding overlay is running
+  startTour: () => void
+  stopTour: () => void
+  tourCode: string | null // tour drives the workspace editor during the demo
+  setTourCode: (v: string | null) => void
+  recordingDrag: boolean // dev tool: recording a hand drag for the tour
+  setRecordingDrag: (v: boolean) => void
 
   refresh: () => Promise<void>
   refreshSettings: () => Promise<void>
@@ -54,6 +61,13 @@ export const useStore = create<State>((set, get) => ({
   setWebviewFull: (v) => set({ webviewFull: v }),
   setResizing: (v) => set({ resizing: v }),
   setWorkspaceLoad: (v) => set({ workspaceLoad: v }),
+  tour: false,
+  startTour: () => set({ tour: true }),
+  stopTour: () => set({ tour: false }),
+  tourCode: null,
+  setTourCode: (v) => set({ tourCode: v }),
+  recordingDrag: false,
+  setRecordingDrag: (v) => set({ recordingDrag: v }),
 
   refresh: async () => {
     const [problems, groups] = await Promise.all([

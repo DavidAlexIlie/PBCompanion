@@ -214,7 +214,7 @@ export default function Board(): JSX.Element {
         <div ref={boardRef} className="flex min-h-0 flex-1 overflow-hidden px-7 pb-6">
           {LANES.map((lane, i) => (
             <div key={lane.status} className="contents">
-              <div style={{ flexGrow: weights[i], flexBasis: 0 }} className="flex min-w-0">
+              <div data-tour="board-col" style={{ flexGrow: weights[i], flexBasis: 0 }} className="flex min-w-0">
                 <Lane lane={lane} ids={lanes[lane.status]} byId={byId} onOpen={openDetail} onMenu={openMenu} />
               </div>
               {i < LANES.length - 1 && (

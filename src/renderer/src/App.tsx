@@ -9,6 +9,8 @@ import SettingsView from './components/SettingsView'
 import CppWorkspace from './components/CppWorkspace'
 import ProblemDetail from './components/ProblemDetail'
 import LoginToast from './components/LoginToast'
+import TutorialOverlay from './components/TutorialOverlay'
+import DragRecorder from './components/DragRecorder'
 import Splitter, { usePersistentNumber, clamp } from './components/Splitter'
 import { useThemeSync } from './lib/theme'
 
@@ -158,6 +160,7 @@ export default function App(): JSX.Element {
           {webviewActive && (
             <div
               ref={webviewSlot}
+              data-tour="webview"
               style={webviewFull ? undefined : { width: shownWebviewW }}
               className={
                 webviewFull ? 'min-w-0 flex-1 bg-white' : 'shrink-0 bg-white'
@@ -171,6 +174,8 @@ export default function App(): JSX.Element {
 
       {detailProblemId !== null && <ProblemDetail problemId={detailProblemId} />}
       <LoginToast />
+      <TutorialOverlay />
+      <DragRecorder />
     </div>
   )
 }

@@ -35,6 +35,7 @@ export default function Home(): JSX.Element {
 
         <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <button
+            data-tour="browse-card"
             onClick={startBrowsing}
             className="group flex items-center gap-4 rounded-2xl bg-brand-600 px-6 py-5 text-left text-white shadow-soft transition hover:bg-brand-700"
           >

@@ -74,6 +74,11 @@ const api = {
   resetSession: (): Promise<void> => ipcRenderer.invoke('app:resetSession'),
   clearLocalData: (): Promise<void> => ipcRenderer.invoke('app:clearLocalData'),
   devReset: (): Promise<void> => ipcRenderer.invoke('app:devReset'),
+  tutorialStart: (): Promise<void> => ipcRenderer.invoke('tutorial:start'),
+  tutorialEnd: (): Promise<void> => ipcRenderer.invoke('tutorial:end'),
+  saveDragRecording: (json: string): Promise<void> =>
+    ipcRenderer.invoke('tutorial:saveDrag', json),
+  getDragRecording: (): Promise<string | null> => ipcRenderer.invoke('tutorial:getDrag'),
   openDataDir: (): Promise<void> => ipcRenderer.invoke('app:openDataDir'),
   chooseDataDir: (): Promise<string | null> => ipcRenderer.invoke('app:chooseDataDir'),
   pushSyncNow: (): Promise<

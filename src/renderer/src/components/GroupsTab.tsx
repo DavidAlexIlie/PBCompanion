@@ -361,6 +361,7 @@ function GroupCard({
     <div
       ref={setNodeRef}
       onContextMenu={onMenu}
+      data-tour={group.name === 'Tema #1' ? 'group-card' : undefined}
       className={`relative min-w-0 rounded-2xl border bg-white p-4 shadow-soft transition ${
         isOver ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200'
       }`}

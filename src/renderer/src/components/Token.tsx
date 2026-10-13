@@ -60,6 +60,7 @@ const Token = forwardRef<HTMLDivElement, Props>(function Token(
   return (
     <div
       ref={ref}
+      data-token-id={problem.id}
       style={{ ...fluidWrap, ...style }}
       className="group/token relative select-none"
       onContextMenu={onContextMenu}

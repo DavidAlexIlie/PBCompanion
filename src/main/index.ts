@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import { join } from 'path'
+import { writeFileSync, readFileSync, existsSync } from 'fs'
 import * as db from './db'
 import * as settings from './settings'
 import * as pb from './pbinfoView'
@@ -161,6 +162,43 @@ function createWindow(): void {
   }
 }
 
+const TUTORIAL_GROUP = 'Tema #1'
+const TUTORIAL_IDS = [100, 101]
+
+/** Insert the demo problems + group the onboarding tour walks through. */
+function setupTutorialMocks(): void {
+  db.registerProblem({
+    id: 100,
+    slug: 'nrapprime',
+    title: 'Al N-lea prim',
+    url: 'https://www.pbinfo.ro/probleme/100/nrapprime',
+    statementHtml: null
+  })
+  db.registerProblem({
+    id: 101,
+    slug: 'numere-prime',
+    title: 'Numere prime',
+    url: 'https://www.pbinfo.ro/probleme/101',
+    statementHtml: null
+  })
+  // Keep both In Progress so the board demo can move one to Completed.
+  db.setProblemStatus(100, 'in_progress')
+  db.setProblemStatus(101, 'in_progress')
+  if (!db.listGroups().some((g) => g.name === TUTORIAL_GROUP)) {
+    const folder = ensureGroupFolder(settings.getSettings().dataDir, TUTORIAL_GROUP)
+    const group = db.createGroup(TUTORIAL_GROUP, '#2563eb', 'book', folder)
+    db.addProblemToGroup(group.id, 100)
+    db.addProblemToGroup(group.id, 101)
+  }
+}
+
+/** Remove everything setupTutorialMocks added. */
+function clearTutorialMocks(): void {
+  const group = db.listGroups().find((g) => g.name === TUTORIAL_GROUP)
+  if (group) db.deleteGroup(group.id)
+  for (const id of TUTORIAL_IDS) db.deleteProblem(id)
+}
+
 function registerIpc(): void {
   // ---- problems ----
   ipcMain.handle('problems:list', () => db.listProblems())
@@ -316,6 +354,32 @@ function registerIpc(): void {
     db.clearOrganizerData()
     notifyDataChanged()
   })
+  // ---- tutorial mock data (temporary, removed when the tour ends) ----
+  ipcMain.handle('tutorial:start', () => {
+    setupTutorialMocks()
+    notifyDataChanged()
+  })
+  ipcMain.handle('tutorial:end', () => {
+    clearTutorialMocks()
+    notifyDataChanged()
+  })
+  // A hand-recorded drag of the demo token, replayed during 4/7.
+  ipcMain.handle('tutorial:saveDrag', (_e, data: string) => {
+    try {
+      writeFileSync(join(dataDir(), 'tutorial-drag.json'), data, 'utf-8')
+    } catch {
+      /* ignore */
+    }
+  })
+  ipcMain.handle('tutorial:getDrag', () => {
+    try {
+      const f = join(dataDir(), 'tutorial-drag.json')
+      return existsSync(f) ? readFileSync(f, 'utf-8') : null
+    } catch {
+      return null
+    }
+  })
+
   // DEV: wipe everything so the next launch is a clean first-run — used while
   // building the onboarding tutorial, to replay the new-user experience.
   ipcMain.handle('app:devReset', async () => {
